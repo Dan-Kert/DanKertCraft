@@ -19,8 +19,7 @@
 
 ## 📸 Preview
 
-
-*(Add your screenshot here later)*
+![Launcher Main Screen](screenshots/main_ui.png)
 
 ## 🛠️ Technology Stack
 
