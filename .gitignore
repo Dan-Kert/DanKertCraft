@@ -1,0 +1,7 @@
+target/
+instances/
+assets/
+runtime/
+libraries/
+*.log
+.idea/
