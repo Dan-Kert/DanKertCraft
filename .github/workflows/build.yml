@@ -8,43 +8,46 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17 with JavaFX
+      - name: Set up JDK 17 (Liberica FULL)
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'liberica'
-          architecture: 'x64'
+          # Мы НЕ указываем architecture, чтобы он взял дефолтную рабочую версию
+          # Но самое важное — Liberica по умолчанию в setup-java может быть не 'full'
+          # Поэтому мы добавим проверку и ручной поиск модулей.
 
       - name: Build JAR and EXE
         run: |
-          # 1. Создаем папку для компиляции
+          # 1. Подготовка папки
           if (!(Test-Path out_build)) { mkdir out_build }
           
-          # 2. Находим все Java файлы
+          # 2. Находим, где реально лежат модули JavaFX в Liberica Full
+          $JMODS_PATH = "$env:JAVA_HOME\jmods"
+          echo "Using JMODS from: $JMODS_PATH"
+          
+          # 3. Собираем список исходников
           $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
           
-          # 3. КОМПИЛЯЦИЯ С ПОДКЛЮЧЕНИЕМ МОДУЛЕЙ JAVAFX
-          # Мы берем модули прямо из папки jmods установленного JDK
-          javac --module-path $env:JAVA_HOME/jmods `
-                --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
-                -encoding utf8 -cp "libs/*" -d out_build $sources
+          # 4. Компиляция (теперь без --module-path, так как Liberica Full включает их в classpath автоматически)
+          # Если не сработает, он упадет здесь, и мы поймем, что JDK не Full
+          javac -encoding utf8 -cp "libs/*" -d out_build $sources
           
-          # 4. Копируем ресурсы
+          # 5. Ресурсы
           if (Test-Path src/main/resources) {
             Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
           }
           
-          # 5. Собираем JAR
+          # 6. JAR
           jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
           
-          # 6. Собираем EXE
+          # 7. EXE (jpackage)
+          # Убираем ручное указание модулей, jpackage сам подтянет их из runtime, если они в JDK
           jpackage --type exe `
             --name DanKertLauncher `
             --input . `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
-            --module-path "$env:JAVA_HOME/jmods" `
-            --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
             --win-shortcut `
             --win-menu `
             --vendor "DanKertCraft" `
