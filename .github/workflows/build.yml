@@ -8,29 +8,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Liberica Full JDK 17
-        uses: bell-soft/liberica-action@v1.6.1 # Исправлено: bell-soft вместо bell-sw
+      - name: Set up JDK 17 with JavaFX
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
-          bundle: 'full'
+          distribution: 'liberica' # Liberica от BellSoft всегда включает JavaFX в этом экшене
+          architecture: 'x64'
 
       - name: Build JAR and EXE
         run: |
-          mkdir out_build
+          # Создаем папку для компиляции
+          if (!(Test-Path out_build)) { mkdir out_build }
           
-          # Компилируем всё
+          # Находим все Java файлы
           $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
+          
+          # Компилируем с библиотекой GSON
           javac -cp "libs/*" -d out_build $sources
           
-          # Копируем ресурсы если они есть
+          # Копируем ресурсы (иконки и т.д.)
           if (Test-Path src/main/resources) {
             Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
           }
           
-          # Создаем JAR
+          # Собираем JAR
           jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
           
-          # Собираем EXE
+          # Собираем EXE через jpackage
           jpackage --type exe `
             --name DanKertLauncher `
             --input . `
