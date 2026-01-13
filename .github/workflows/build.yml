@@ -8,51 +8,53 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17 (Liberica FULL)
+      - name: Set up Liberica Full JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'liberica'
-          # Мы НЕ указываем architecture, чтобы он взял дефолтную рабочую версию
-          # Но самое важное — Liberica по умолчанию в setup-java может быть не 'full'
-          # Поэтому мы добавим проверку и ручной поиск модулей.
+          # Важно: это заставляет экшен искать Full-версию с JavaFX
+          check-latest: false
 
       - name: Build JAR and EXE
         run: |
-          # 1. Подготовка папки
+          # 1. Подготовка
           if (!(Test-Path out_build)) { mkdir out_build }
           
-          # 2. Находим, где реально лежат модули JavaFX в Liberica Full
-          $JMODS_PATH = "$env:JAVA_HOME\jmods"
-          echo "Using JMODS from: $JMODS_PATH"
-          
-          # 3. Собираем список исходников
+          # 2. Указываем путь к модулям JavaFX вручную
+          # В Liberica Full они лежат в папке jmods
+          $JAVA_MODS = "$env:JAVA_HOME\jmods"
+          echo "JDK Path: $env:JAVA_HOME"
+          echo "Checking JMODS at: $JAVA_MODS"
+
+          # 3. Список файлов
           $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
           
-          # 4. Компиляция (теперь без --module-path, так как Liberica Full включает их в classpath автоматически)
-          # Если не сработает, он упадет здесь, и мы поймем, что JDK не Full
-          javac -encoding utf8 -cp "libs/*" -d out_build $sources
+          # 4. КОМПИЛЯЦИЯ С ЯВНЫМ УКАЗАНИЕМ МОДУЛЕЙ
+          javac --module-path "$JAVA_MODS" `
+                --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
+                -encoding utf8 -cp "libs/*" -d out_build $sources
           
-          # 5. Ресурсы
+          # 5. Копируем ресурсы
           if (Test-Path src/main/resources) {
             Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
           }
           
-          # 6. JAR
+          # 6. Собираем JAR
           jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
           
-          # 7. EXE (jpackage)
-          # Убираем ручное указание модулей, jpackage сам подтянет их из runtime, если они в JDK
+          # 7. Собираем EXE
           jpackage --type exe `
             --name DanKertLauncher `
             --input . `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
+            --module-path "$JAVA_MODS" `
+            --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
             --win-shortcut `
             --win-menu `
-            --vendor "DanKertCraft" `
-            --description "Minecraft Launcher by DanKert"
-
+            --vendor "DanKertCraft"
+      
       - name: Upload EXE Artifact
         uses: actions/upload-artifact@v4
         with:
