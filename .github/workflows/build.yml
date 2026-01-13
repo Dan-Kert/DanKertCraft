@@ -23,10 +23,13 @@ jobs:
           # 2. Находим все Java файлы
           $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
           
-          # 3. КОМПИЛЯЦИЯ С UTF-8 (Исправляет ошибки кириллицы)
-          javac -encoding utf8 -cp "libs/*" -d out_build $sources
+          # 3. КОМПИЛЯЦИЯ С ПОДКЛЮЧЕНИЕМ МОДУЛЕЙ JAVAFX
+          # Мы берем модули прямо из папки jmods установленного JDK
+          javac --module-path $env:JAVA_HOME/jmods `
+                --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
+                -encoding utf8 -cp "libs/*" -d out_build $sources
           
-          # 4. Копируем ресурсы (картинки, конфиги)
+          # 4. Копируем ресурсы
           if (Test-Path src/main/resources) {
             Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
           }
@@ -34,15 +37,14 @@ jobs:
           # 5. Собираем JAR
           jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
           
-          # 6. Собираем EXE через jpackage
-          # Добавлен флаг --bind-services и модули для стабильной работы
+          # 6. Собираем EXE
           jpackage --type exe `
             --name DanKertLauncher `
             --input . `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
-            --module-path $env:JAVA_HOME/jmods `
-            --add-modules javafx.controls,javafx.fxml,javafx.graphics `
+            --module-path "$env:JAVA_HOME/jmods" `
+            --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
             --win-shortcut `
             --win-menu `
             --vendor "DanKertCraft" `
