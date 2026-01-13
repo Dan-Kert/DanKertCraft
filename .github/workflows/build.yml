@@ -1,0 +1,51 @@
+name: Build DanKertLauncher EXE
+on: [push]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Liberica Full JDK 17
+        uses: bell-sw/liberica-action@v1.6.1
+        with:
+          java-version: '17'
+          bundle: 'full' # Это дает нам JavaFX "из коробки"
+
+      - name: Build JAR and EXE
+        run: |
+          # 1. Создаем папку для компиляции
+          mkdir out_build
+          
+          # 2. Находим все файлы и компилируем их с библиотекой GSON
+          $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
+          javac -cp "libs/*" -d out_build $sources
+          
+          # 3. Копируем ресурсы (иконки и т.д.)
+          if (Test-Path src/main/resources) {
+            Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
+          }
+          
+          # 4. Собираем основной JAR
+          jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
+          
+          # 5. Создаем EXE установщик (один файл со встроенной Java)
+          jpackage --type exe `
+            --name DanKertLauncher `
+            --input . `
+            --main-jar DanKertCraft.jar `
+            --main-class md.dankert.dankertcraft.Main `
+            --module-path $env:JAVA_HOME/jmods `
+            --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
+            --win-shortcut `
+            --win-menu `
+            --vendor "DanKertCraft" `
+            --description "Minecraft Launcher by DanKert"
+
+      - name: Upload EXE Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DanKertLauncher-Windows
+          path: "*.exe"
