@@ -16,12 +16,8 @@ jobs:
 
       - name: Download JavaFX Modules via Maven
         run: |
-          # Создаем временную папку для модулей
           mkdir javafx-sdk
-          
-          # Список нужных нам модулей JavaFX
           $modules = "controls", "fxml", "graphics", "media", "base"
-          
           foreach ($mod in $modules) {
             $url = "https://repo1.maven.org/maven2/org/openjfx/javafx-$mod/17.0.10/javafx-$mod-17.0.10-win.jar"
             echo "Downloading $mod..."
@@ -31,11 +27,9 @@ jobs:
       - name: Build JAR and EXE
         run: |
           if (!(Test-Path out_build)) { mkdir out_build }
-          
-          # Список исходников
           $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
           
-          # 1. Компиляция (Подключаем скачанные JAR-ники JavaFX и твои библиотеки из libs)
+          # 1. Компиляция
           javac -encoding utf8 `
                 -cp "javafx-sdk/*;libs/*" `
                 -d out_build $sources
@@ -45,18 +39,17 @@ jobs:
             Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
           }
           
-          # 3. Создаем основной JAR
+          # 3. JAR
           jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
           
-          # 4. Собираем EXE через jpackage
-          # Здесь мы добавляем JavaFX JAR-ники в общую папку для упаковки
+          # 4. Собираем EXE (ДОБАВЛЕНЫ СЕТЕВЫЕ МОДУЛИ)
           jpackage --type exe `
             --name DanKertLauncher `
             --input . `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
-            --module-path "javafx-sdk" `
-            --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
+            --module-path "${env:JAVA_HOME}\jmods;javafx-sdk" `
+            --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,jdk.crypto.ec,java.net.http `
             --win-shortcut `
             --win-menu `
             --vendor "DanKertCraft"
