@@ -12,34 +12,37 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'liberica' # Liberica от BellSoft всегда включает JavaFX в этом экшене
+          distribution: 'liberica'
           architecture: 'x64'
 
       - name: Build JAR and EXE
         run: |
-          # Создаем папку для компиляции
+          # 1. Создаем папку для компиляции
           if (!(Test-Path out_build)) { mkdir out_build }
           
-          # Находим все Java файлы
+          # 2. Находим все Java файлы
           $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
           
-          # Компилируем с библиотекой GSON
-          javac -cp "libs/*" -d out_build $sources
+          # 3. КОМПИЛЯЦИЯ С UTF-8 (Исправляет ошибки кириллицы)
+          javac -encoding utf8 -cp "libs/*" -d out_build $sources
           
-          # Копируем ресурсы (иконки и т.д.)
+          # 4. Копируем ресурсы (картинки, конфиги)
           if (Test-Path src/main/resources) {
             Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
           }
           
-          # Собираем JAR
+          # 5. Собираем JAR
           jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
           
-          # Собираем EXE через jpackage
+          # 6. Собираем EXE через jpackage
+          # Добавлен флаг --bind-services и модули для стабильной работы
           jpackage --type exe `
             --name DanKertLauncher `
             --input . `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
+            --module-path $env:JAVA_HOME/jmods `
+            --add-modules javafx.controls,javafx.fxml,javafx.graphics `
             --win-shortcut `
             --win-menu `
             --vendor "DanKertCraft" `
