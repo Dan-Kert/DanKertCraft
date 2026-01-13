@@ -12,45 +12,50 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin' # Стандартный надежный JDK
+          distribution: 'temurin'
 
-      - name: Download JavaFX JMODS
+      - name: Download JavaFX Modules via Maven
         run: |
-          # Скачиваем официальные модули JavaFX 17.0.10
-          Invoke-WebRequest -Uri https://gluonhq.com/download/javafx-17-0-10-jmods-windows/ -OutFile javafx-jmods.zip
-          Expand-Archive -Path javafx-jmods.zip -DestinationPath .
-          # Папка после распаковки обычно называется javafx-jmods-17.0.10
+          # Создаем временную папку для модулей
+          mkdir javafx-sdk
+          
+          # Список нужных нам модулей JavaFX
+          $modules = "controls", "fxml", "graphics", "media", "base"
+          
+          foreach ($mod in $modules) {
+            $url = "https://repo1.maven.org/maven2/org/openjfx/javafx-$mod/17.0.10/javafx-$mod-17.0.10-win.jar"
+            echo "Downloading $mod..."
+            Invoke-WebRequest -Uri $url -OutFile "javafx-sdk/javafx-$mod.jar"
+          }
 
       - name: Build JAR and EXE
         run: |
           if (!(Test-Path out_build)) { mkdir out_build }
           
-          # Путь к скачанным модулям JavaFX
-          $FX_MODS = "javafx-jmods-17.0.10"
-          
-          # Список файлов
+          # Список исходников
           $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
           
-          # 1. Компиляция (Подключаем скачанные JMODS и твои библиотеки из libs)
-          javac --module-path $FX_MODS `
-                --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
-                -encoding utf8 -cp "libs/*" -d out_build $sources
+          # 1. Компиляция (Подключаем скачанные JAR-ники JavaFX и твои библиотеки из libs)
+          javac -encoding utf8 `
+                -cp "javafx-sdk/*;libs/*" `
+                -d out_build $sources
           
           # 2. Ресурсы
           if (Test-Path src/main/resources) {
             Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
           }
           
-          # 3. Создаем JAR
+          # 3. Создаем основной JAR
           jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
           
-          # 4. Собираем EXE (Указываем jpackage использовать и системные модули, и скачанные FX)
+          # 4. Собираем EXE через jpackage
+          # Здесь мы добавляем JavaFX JAR-ники в общую папку для упаковки
           jpackage --type exe `
             --name DanKertLauncher `
             --input . `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
-            --module-path "${env:JAVA_HOME}\jmods;$FX_MODS" `
+            --module-path "javafx-sdk" `
             --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media `
             --win-shortcut `
             --win-menu `
