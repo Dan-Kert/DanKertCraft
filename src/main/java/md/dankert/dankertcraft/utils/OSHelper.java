@@ -69,9 +69,16 @@ public class OSHelper {
     }
 
     public static void deleteDirectory(File directory) {
+        // ФАЗА 2: NPE защита - проверяем что directory не null
+        if (directory == null || !directory.exists()) {
+            return;
+        }
+        
         File[] files = directory.listFiles();
+        // ФАЗА 2: NPE защита - listFiles() может вернуть null
         if (files != null) {
             for (File file : files) {
+                if (file == null) continue;
                 if (file.isDirectory()) {
                     deleteDirectory(file);
                 } else {

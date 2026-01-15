@@ -1,9 +1,6 @@
 package md.dankert.dankertcraft.ui;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -15,6 +12,8 @@ import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.InstanceConfigHelper;
+import md.dankert.dankertcraft.config.ConfigManager;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -66,15 +65,17 @@ public class InstanceView extends VBox {
 
         MenuItem editIcon = new MenuItem("Сменить иконку");
         MenuItem editSettings = new MenuItem("Изменить ОЗУ / Java");
+        MenuItem changeNickname = new MenuItem("Изменить никнейм");
         MenuItem delete = new MenuItem("Удалить сборку");
 
         // Стили для текста и отступов пунктов
         String itemStyle = "-fx-text-fill: white; -fx-padding: 10 20; -fx-font-size: 13px;";
         editIcon.setStyle(itemStyle);
         editSettings.setStyle(itemStyle);
+        changeNickname.setStyle(itemStyle);
         delete.setStyle(itemStyle + "-fx-text-fill: #e74c3c;"); // Красный для удаления
 
-        settingsMenu.getItems().addAll(editIcon, editSettings, new SeparatorMenuItem(), delete);
+        settingsMenu.getItems().addAll(editIcon, editSettings, changeNickname, new SeparatorMenuItem(), delete);
 
         // Обработка клика по кнопке настроек
         settingsBtn.setOnAction(e -> {
@@ -83,6 +84,7 @@ public class InstanceView extends VBox {
 
         // Логика действий
         editSettings.setOnAction(e -> showEditWindow());
+        changeNickname.setOnAction(e -> changePlayerNickname());
         delete.setOnAction(e -> deleteInstance());
         editIcon.setOnAction(e -> {
             new IconSelector(newIcon -> {
@@ -133,10 +135,64 @@ public class InstanceView extends VBox {
 
         actions.getChildren().addAll(playBtn, folderBtn);
 
+        // Кнопка МОДЫ для Fabric и Forge версий
+        String instanceType = config.has("type") ? config.get("type").getAsString() : "Vanilla";
+        if ("Fabric".equals(instanceType) || "Forge".equals(instanceType)) {
+            Button modsBtn = createActionButton("МОДЫ", "#8e44ad", false);
+            modsBtn.setOnAction(e -> openModsFolder());
+            actions.getChildren().add(modsBtn);
+        }
+
         this.getChildren().addAll(topBar, header, infoBar, actions);
     }
 
     // --- МОДАЛЬНОЕ ОКНО НАСТРОЕК ---
+    private void changePlayerNickname() {
+        Stage stage = new Stage();
+        stage.initModality(Modality.APPLICATION_MODAL);
+        stage.setTitle("Изменить никнейм");
+        stage.setWidth(400);
+        stage.setHeight(200);
+        
+        VBox layout = new VBox(20);
+        layout.setPadding(new Insets(25));
+        layout.setStyle("-fx-background-color: #121212;");
+        layout.setAlignment(Pos.CENTER);
+        
+        Label label = new Label("Введите новый никнейм игрока:");
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: #ecf0f1;");
+        
+        TextField nicknameField = new TextField(ConfigManager.getInstance().getUsername());
+        nicknameField.setPrefHeight(40);
+        nicknameField.setStyle("-fx-font-size: 13px; -fx-padding: 10px; -fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-border-color: #2ecc71; -fx-border-radius: 5;");
+        
+        HBox btnBox = new HBox(10);
+        btnBox.setAlignment(Pos.CENTER);
+        
+        Button saveBtn = new Button("Сохранить");
+        saveBtn.setPrefWidth(100);
+        saveBtn.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5;");
+        saveBtn.setOnAction(e -> {
+            String newNickname = nicknameField.getText().trim();
+            if (!newNickname.isEmpty()) {
+                ConfigManager.getInstance().setUsername(newNickname);
+                stage.close();
+            }
+        });
+        
+        Button cancelBtn = new Button("Отмена");
+        cancelBtn.setPrefWidth(100);
+        cancelBtn.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5;");
+        cancelBtn.setOnAction(e -> stage.close());
+        
+        btnBox.getChildren().addAll(saveBtn, cancelBtn);
+        layout.getChildren().addAll(label, nicknameField, btnBox);
+        
+        Scene scene = new Scene(layout);
+        stage.setScene(scene);
+        stage.showAndWait();
+    }
+    
     private void showEditWindow() {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
@@ -204,12 +260,8 @@ public class InstanceView extends VBox {
     }
 
     private void updateConfigField(String key, String value) {
-        try {
-            config.addProperty(key, value);
-            File f = new File(workDir, "instances/" + instanceName + "/instance.json");
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            Files.writeString(f.toPath(), gson.toJson(config));
-        } catch (Exception e) { e.printStackTrace(); }
+        config.addProperty(key, value);
+        InstanceConfigHelper.saveInstanceConfig(workDir, instanceName, config);
     }
 
     private void deleteInstance() {
@@ -226,6 +278,10 @@ public class InstanceView extends VBox {
     }
 
     // --- АСИНХРОННОЕ ОТКРЫТИЕ ПАПКИ (БЕЗ ЗАВИСАНИЙ) ---
+    private void openModsFolder() {
+        new ModWindow(instanceName, config.has("type") ? config.get("type").getAsString() : "Vanilla").show();
+    }
+
     private void openFolderAsync() {
         new Thread(() -> {
             try {
@@ -240,16 +296,7 @@ public class InstanceView extends VBox {
     }
 
     private void loadConfig() {
-        try {
-            File f = new File(workDir, "instances/" + instanceName + "/instance.json");
-            this.config = JsonParser.parseString(Files.readString(f.toPath())).getAsJsonObject();
-        } catch (Exception e) {
-            this.config = new JsonObject();
-            config.addProperty("version", "1.x");
-            config.addProperty("type", "Vanilla");
-            config.addProperty("ram", "4");
-            config.addProperty("javaPath", "Auto");
-        }
+        this.config = InstanceConfigHelper.loadInstanceConfig(workDir, instanceName);
     }
 
     private VBox createInfoStat(String label, String value) {

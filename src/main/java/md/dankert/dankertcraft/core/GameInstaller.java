@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import md.dankert.dankertcraft.utils.Downloader;
+import md.dankert.dankertcraft.cache.CacheManager;
+import md.dankert.dankertcraft.config.ConfigManager;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -17,6 +19,10 @@ public class GameInstaller {
     private final String workDir;
     private final Gson gson = new Gson();
     private final String osFamily;
+    private ProgressListener listener;
+    private long totalBytesDownloaded = 0;
+    private volatile boolean shouldStop = false;
+    private volatile boolean isPaused = false;
 
     public GameInstaller(String workDir) {
         this.workDir = workDir;
@@ -26,21 +32,81 @@ public class GameInstaller {
         else this.osFamily = "linux";
     }
 
-    public List<String> getAllVersionIds() throws IOException {
-        String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
-        String json = Downloader.downloadToString(manifestUrl);
-        VersionData.Manifest manifest = gson.fromJson(json, VersionData.Manifest.class);
-
-        List<String> ids = new ArrayList<>();
-        if (manifest != null && manifest.versions != null) {
-            for (VersionData.Manifest.Version v : manifest.versions) {
-                ids.add(v.id);
-            }
-        }
-        return ids;
+    public void setProgressListener(ProgressListener listener) {
+        this.listener = listener;
     }
 
-    public VersionData setupGame(String version) throws IOException {
+    public void stop() {
+        this.shouldStop = true;
+    }
+
+    public void setPaused(boolean paused) {
+        this.isPaused = paused;
+    }
+
+    public boolean isStopped() {
+        return shouldStop;
+    }
+
+    public boolean isPaused() {
+        return isPaused;
+    }
+
+    private void checkPause() {
+        while (isPaused && !shouldStop) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+    }
+
+    public List<String> getAllVersionIds() throws IOException {
+        ConfigManager configMgr = ConfigManager.getInstance();
+        CacheManager cacheMgr = CacheManager.getInstance();
+        
+        // Пытаемся получить из кэша
+        if (configMgr.isCacheVersions()) {
+            List<String> cached = cacheMgr.getVersionsFromCache();
+            if (cached != null && !cached.isEmpty()) {
+                return cached;
+            }
+        }
+        
+        try {
+            // Загружаем с интернета
+            String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+            String json = Downloader.downloadToString(manifestUrl);
+            VersionData.Manifest manifest = gson.fromJson(json, VersionData.Manifest.class);
+
+            List<String> ids = new ArrayList<>();
+            if (manifest != null && manifest.versions != null) {
+                for (VersionData.Manifest.Version v : manifest.versions) {
+                    ids.add(v.id);
+                }
+            }
+            
+            // Сохраняем в кэш
+            if (configMgr.isCacheVersions() && !ids.isEmpty()) {
+                cacheMgr.saveVersionsToCache(ids);
+            }
+            
+            return ids;
+        } catch (Exception e) {
+            System.err.println("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш");
+            List<String> cached = cacheMgr.getVersionsFromCache();
+            if (cached != null) {
+                return cached;
+            }
+            throw new IOException("Не удалось загрузить версии", e);
+        }
+    }
+
+    public VersionData setupGame(String version, ProgressListener listener) throws IOException {
+        this.listener = listener;
+        
         String versionDir = workDir + File.separator + "versions" + File.separator + version;
         String jsonPath = versionDir + File.separator + version + ".json";
         String jarPath = versionDir + File.separator + version + ".jar";
@@ -90,42 +156,50 @@ public class GameInstaller {
         ExecutorService executor = Executors.newFixedThreadPool(10);
         System.out.println("[Installer] Проверка библиотек в 10 потоков...");
 
+        // Подсчитываем количество файлов
+        int totalFiles = 0;
+        for (VersionData.Library lib : data.libraries) {
+            if (!isLibraryAllowed(lib)) continue;
+            totalFiles++;
+        }
+
+        final int[] currentFile = {0};
+        final int totalFilesCopy = totalFiles;
+
         for (VersionData.Library lib : data.libraries) {
             if (!isLibraryAllowed(lib)) continue;
 
             executor.execute(() -> {
+                if (shouldStop) return;
+                checkPause(); // Проверяем паузу перед загрузкой
+                
                 try {
-                    // --- ЛОГИКА 1: Основные файлы ---
-                    // Пропускаем скачивание "Main", если библиотека явно помечена как "natives" или "platform" в имени
-                    // Это нужно для старых версий, чтобы не пытаться качать несуществующие jar
                     boolean isNativeOnly = lib.name != null && (lib.name.contains("natives") || lib.name.contains("platform"));
 
                     if (lib.downloads != null && lib.downloads.artifact != null) {
-                        // Современный стандарт (1.7+)
-                        downloadLibFile(lib.downloads.artifact, null, null);
+                        downloadLibFile(lib.downloads.artifact, null, null, currentFile, totalFilesCopy);
                     } else if (lib.name != null && !isNativeOnly) {
-                        // Старый стандарт (Fallback) - качаем по Maven пути
-                        downloadLibFile(null, lib.name, lib.url);
+                        downloadLibFile(null, lib.name, lib.url, currentFile, totalFilesCopy);
                     }
 
-                    // --- ЛОГИКА 2: Нативы (Natives) ---
-                    // Это критично для LWJGL в Beta/Alpha версиях
                     if (lib.natives != null && lib.natives.containsKey(osFamily)) {
                         String classifier = lib.natives.get(osFamily);
 
                         if (lib.downloads != null && lib.downloads.classifiers != null) {
-                            // А. Современный способ: берем из classifiers
                             VersionData.Artifact nativeArt = lib.downloads.classifiers.get(classifier);
                             if (nativeArt != null) {
-                                downloadLibFile(nativeArt, null, null);
+                                downloadLibFile(nativeArt, null, null, currentFile, totalFilesCopy);
                             }
                         } else {
-                            // Б. Устаревший способ (Beta/Alpha): строим путь вручную
-                            // Пример: org.lwjgl.lwjgl:lwjgl-platform:2.9.0 -> classifier: natives-linux
-                            // Результат maven: org.lwjgl.lwjgl:lwjgl-platform:2.9.0:natives-linux
                             String nativeMavenId = lib.name + ":" + classifier;
-                            downloadLibFile(null, nativeMavenId, lib.url);
+                            downloadLibFile(null, nativeMavenId, lib.url, currentFile, totalFilesCopy);
                         }
+                    }
+
+                    // Обновляем прогресс
+                    synchronized (currentFile) {
+                        currentFile[0]++;
+                        reportProgress("Загрузка библиотек", currentFile[0], totalFilesCopy);
                     }
                 } catch (IOException e) {
                     System.err.println("[Installer] Ошибка при загрузке библиотеки " + lib.name + ": " + e.getMessage());
@@ -136,7 +210,13 @@ public class GameInstaller {
         waitForFinish(executor, "Библиотеки");
     }
 
-    private void downloadLibFile(VersionData.Artifact artifact, String name, String baseUrl) throws IOException {
+    private void reportProgress(String stage, int current, int total) {
+        if (listener != null) {
+            listener.onProgress(stage, current, total, totalBytesDownloaded);
+        }
+    }
+
+    private void downloadLibFile(VersionData.Artifact artifact, String name, String baseUrl, int[] currentFile, int totalFiles) throws IOException {
         String url = null, path = null, sha1 = null;
         if (artifact != null) {
             url = artifact.url; path = artifact.path; sha1 = artifact.sha1;
@@ -150,7 +230,15 @@ public class GameInstaller {
             File file = new File(workDir + File.separator + "libraries" + File.separator + path);
             if (needsUpdate(file, sha1)) {
                 file.getParentFile().mkdirs();
-                Downloader.downloadFile(url, file.getAbsolutePath());
+                try (java.io.BufferedInputStream in = new java.io.BufferedInputStream(new java.net.URL(url).openStream());
+                     java.io.FileOutputStream out = new java.io.FileOutputStream(file.getAbsolutePath())) {
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, read);
+                        totalBytesDownloaded += read;
+                    }
+                }
             }
         }
     }
@@ -178,7 +266,9 @@ public class GameInstaller {
         boolean isLegacy = isVirtual || mapToResources;
 
         ExecutorService executor = Executors.newFixedThreadPool(15);
-        System.out.println("[Installer] Проверка ассетов (" + objects.size() + " файлов). Legacy режим: " + isLegacy);
+        int totalAssets = objects.size();
+        final int[] currentAsset = {0};
+        System.out.println("[Installer] Проверка ассетов (" + totalAssets + " файлов). Legacy режим: " + isLegacy);
 
         for (Map.Entry<String, JsonElement> entry : objects.entrySet()) {
             String assetName = entry.getKey();
@@ -187,6 +277,9 @@ public class GameInstaller {
             long size = obj.has("size") ? obj.get("size").getAsLong() : 0;
 
             executor.execute(() -> {
+                if (shouldStop) return;
+                checkPause(); // Проверяем паузу перед загрузкой
+                
                 try {
                     String sub = hash.substring(0, 2);
                     File objectFile = new File(workDir + "/assets/objects/" + sub + "/" + hash);
@@ -194,7 +287,7 @@ public class GameInstaller {
                     boolean downloaded = false;
                     if (!objectFile.exists() || objectFile.length() != size) {
                         objectFile.getParentFile().mkdirs();
-                        Downloader.downloadFile("https://resources.download.minecraft.net/" + sub + "/" + hash, objectFile.getAbsolutePath());
+                        downloadAssetFile("https://resources.download.minecraft.net/" + sub + "/" + hash, objectFile.getAbsolutePath());
                         downloaded = true;
                     }
 
@@ -206,13 +299,31 @@ public class GameInstaller {
                         }
                     }
 
+                    // Обновляем прогресс
+                    synchronized (currentAsset) {
+                        currentAsset[0]++;
+                        reportProgress("Синхронизация ассетов", currentAsset[0], totalAssets);
+                    }
+
                 } catch (Exception e) {
-                    // Игнорируем
+                    System.err.println("[Installer] Ошибка при загрузке ассета: " + e.getMessage());
                 }
             });
         }
 
         waitForFinish(executor, "Ассеты");
+    }
+
+    private void downloadAssetFile(String url, String destPath) throws IOException {
+        try (java.io.BufferedInputStream in = new java.io.BufferedInputStream(new java.net.URL(url).openStream());
+             java.io.FileOutputStream out = new java.io.FileOutputStream(destPath)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+                totalBytesDownloaded += read;
+            }
+        }
     }
 
     private void waitForFinish(ExecutorService executor, String label) {

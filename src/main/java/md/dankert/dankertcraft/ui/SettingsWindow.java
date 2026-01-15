@@ -3,47 +3,75 @@ package md.dankert.dankertcraft.ui;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
+import md.dankert.dankertcraft.config.ConfigManager;
 
 public class SettingsWindow {
 
     public void show() {
         Stage stage = new Stage();
-        // Делаем окно модальным (блокирует основное окно, пока не закроешь)
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle("Настройки");
+        stage.setTitle("Настройки лаунчера");
 
-        VBox layout = new VBox(20);
-        layout.setAlignment(Pos.CENTER);
-        layout.setPadding(new Insets(40));
-        // Темный фон с небольшим закруглением
-        layout.setStyle("-fx-background-color: #1a1a1a; -fx-border-color: #333; -fx-border-width: 1; -fx-background-radius: 15; -fx-border-radius: 15;");
+        VBox layout = new VBox(15);
+        layout.setAlignment(Pos.TOP_CENTER);
+        layout.setPadding(new Insets(25));
+        layout.setStyle("-fx-background-color: #121212;");
 
-        // Иконка-заглушка (шестеренка или просто текст)
-        Label iconLabel = new Label("⚙");
-        iconLabel.setStyle("-fx-font-size: 50px; -fx-text-fill: #00b894;");
+        Label title = new Label("НАСТРОЙКИ ЛАУНЧЕРА");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2ecc71;");
 
-        Label title = new Label("НАСТРОЙКИ");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white; -fx-letter-spacing: 2px;");
+        // Кэширование
+        CheckBox cacheBox = new CheckBox("Использовать кэширование версий");
+        cacheBox.setSelected(ConfigManager.getInstance().isCacheVersions());
+        cacheBox.setStyle("-fx-text-fill: #ecf0f1; -fx-font-size: 13px;");
+        cacheBox.setOnAction(e -> ConfigManager.getInstance().setCacheVersions(cacheBox.isSelected()));
 
-        VBox infoBox = new VBox(10);
-        infoBox.setAlignment(Pos.CENTER);
+        Label cacheDesc = new Label("Сохраняет скачанные версии для работы офлайн");
+        cacheDesc.setStyle("-fx-text-fill: #888; -fx-font-size: 11px;");
 
-        Label statusLabel = new Label("РАЗДЕЛ В РАЗlАБОТКЕ");
-        statusLabel.setStyle("-fx-text-fill: #ff7675; -fx-font-weight: bold;");
+        // ОЗУ по умолчанию
+        VBox ramBox = new VBox(5);
+        Label ramLabel = new Label("ОЗУ для новых сборок (ГБ):");
+        ramLabel.setStyle("-fx-text-fill: #ecf0f1; -fx-font-size: 12px;");
+        
+        Spinner<Integer> ramSpinner = new Spinner<>(1, 32, ConfigManager.getInstance().getRamGB(), 1);
+        ramSpinner.setPrefWidth(100);
+        ramSpinner.setStyle("-fx-padding: 5px;");
+        
+        Button saveRamBtn = new Button("Применить");
+        saveRamBtn.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 3; -fx-padding: 5 15;");
+        saveRamBtn.setOnAction(e -> ConfigManager.getInstance().setRamGB(ramSpinner.getValue()));
+        
+        HBox ramBtnBox = new HBox(10, ramSpinner, saveRamBtn);
+        ramBtnBox.setAlignment(Pos.CENTER_LEFT);
+        ramBox.getChildren().addAll(ramLabel, ramBtnBox);
 
-        layout.getChildren().addAll(iconLabel, title, infoBox);
+        // Кнопка закрытия
+        Button closeBtn = new Button("Закрыть");
+        closeBtn.setPrefWidth(120);
+        closeBtn.setPrefHeight(35);
+        closeBtn.setStyle("-fx-font-size: 12px; -fx-background-color: #34495e; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5;");
+        closeBtn.setOnAction(e -> stage.close());
 
-        Scene scene = new Scene(layout, 450, 350);
-        scene.setFill(Color.TRANSPARENT);
+        layout.getChildren().addAll(
+            title,
+            new Separator(),
+            cacheBox,
+            cacheDesc,
+            new Separator(),
+            ramBox,
+            new Region(),
+            closeBtn
+        );
+        
+        VBox.setVgrow(layout.getChildren().get(layout.getChildren().size() - 2), Priority.ALWAYS);
 
+        Scene scene = new Scene(layout, 400, 350);
         stage.setScene(scene);
-        stage.setResizable(false);
         stage.show();
     }
 }

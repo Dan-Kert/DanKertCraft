@@ -2,17 +2,14 @@ package md.dankert.dankertcraft.core;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import md.dankert.dankertcraft.utils.Downloader;
 import java.io.IOException;
 
 public class FabricManager {
-    private final String workDir;
     private final GameInstaller installer;
     private final Gson gson = new Gson();
 
     public FabricManager(String workDir) {
-        this.workDir = workDir;
         this.installer = new GameInstaller(workDir);
     }
 

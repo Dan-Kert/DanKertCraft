@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.*;
+import java.util.Arrays;
 import java.util.function.Consumer;
 
 public class Sidebar extends VBox {
@@ -32,14 +33,13 @@ public class Sidebar extends VBox {
     public Sidebar(Runnable onHomeClick, Runnable onAddClick, Consumer<String> onInstanceClick, Runnable onSettingsClick) {
         this.onInstanceClick = onInstanceClick;
 
-        // Базовые настройки сайдбара
         this.setPrefWidth(85);
         this.setMinWidth(85);
         this.setPadding(new Insets(20, 0, 20, 0));
         this.setAlignment(Pos.TOP_CENTER);
         this.setSpacing(15);
 
-        // Жесткий стиль для предотвращения "белой темы"
+        // Основной стиль
         this.setStyle("-fx-background-color: #161616; -fx-border-color: #2c2c2c; -fx-border-width: 0 1 0 0;");
 
         // Кнопка Логотипа
@@ -65,7 +65,6 @@ public class Sidebar extends VBox {
         Button addBtn = new Button("+");
         addBtn.setTooltip(new Tooltip("Добавить новую версию"));
         addBtn.getStyleClass().add("sidebar-add-btn");
-        // Внутренний стиль для специфической кнопки
         addBtn.setStyle("-fx-background-color: #2c2c2c; -fx-text-fill: #27ae60; -fx-font-size: 24px; " +
                 "-fx-background-radius: 50; -fx-min-width: 55px; -fx-min-height: 55px; -fx-cursor: hand;");
 
@@ -73,28 +72,22 @@ public class Sidebar extends VBox {
 
         this.getChildren().addAll(logoBtn, new Separator(), instancesContainer, spacer, addBtn);
 
-        // Добавляем общие стили кнопок сайдбара
-        Platform.runLater(() -> {
-            if (getScene() != null) {
-                getScene().getStylesheets().add("data:text/css," +
-                        ".sidebar-btn { -fx-background-color: transparent; -fx-cursor: hand; -fx-padding: 5; -fx-background-radius: 12; }" +
-                        ".sidebar-btn:hover { -fx-background-color: #2d2d2d; }");
-            }
-        });
-
         refresh();
         startWatching();
     }
 
     public void refresh() {
-        File instancesDir = new File(workDir, "instances");
-        if (!instancesDir.exists()) instancesDir.mkdirs();
-
-        File[] folders = instancesDir.listFiles(File::isDirectory);
-
         Platform.runLater(() -> {
+            File instancesDir = new File(workDir, "instances");
+            if (!instancesDir.exists()) instancesDir.mkdirs();
+
+            // Берем только реально существующие директории
+            File[] folders = instancesDir.listFiles(f -> f.isDirectory() && f.exists());
+
             instancesContainer.getChildren().clear();
             if (folders != null) {
+                // Сортируем для стабильности порядка
+                Arrays.sort(folders, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
                 for (File folder : folders) {
                     String name = folder.getName();
                     String iconName = getIconName(folder);
@@ -142,24 +135,19 @@ public class Sidebar extends VBox {
                 if (is != null) img = new Image(is);
             }
 
-            // Если совсем ничего не загрузилось - ставим заглушку
             if (img == null) {
                 InputStream fallback = getClass().getResourceAsStream("/icons/blocks/standart.png");
                 if (fallback != null) img = new Image(fallback);
             }
-
             iv.setImage(img);
         } catch (Exception e) {
-            System.err.println("Ошибка в Sidebar при загрузке: " + iconPath);
+            System.err.println("Ошибка Sidebar: " + iconPath);
         }
 
-        // Круглая маска для иконки
         Circle clip = new Circle(size / 2.0, size / 2.0, size / 2.0);
         iv.setClip(clip);
-
         btn.setGraphic(iv);
         btn.setTooltip(new Tooltip(tooltipText));
-
         return btn;
     }
 
@@ -170,37 +158,58 @@ public class Sidebar extends VBox {
                 if (!Files.exists(instancesPath)) Files.createDirectories(instancesPath);
 
                 WatchService watcher = FileSystems.getDefault().newWatchService();
-                registerAll(instancesPath, watcher);
 
-                while (true) {
+                // Регистрируем корень и все подпапки
+                registerRecursive(instancesPath, watcher);
+
+                while (!Thread.currentThread().isInterrupted()) {
                     WatchKey key = watcher.take();
-                    // Небольшая задержка, чтобы файловая система успела "отпустить" файл
-                    Thread.sleep(300);
+                    Thread.sleep(500); // Даем время файлам "остыть"
 
+                    boolean shouldRefresh = false;
                     for (WatchEvent<?> event : key.pollEvents()) {
                         WatchEvent.Kind<?> kind = event.kind();
+
+                        // Если создана новая папка - регистрируем её тоже
                         if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
-                            // Перерегистрируем, если появилась новая папка
-                            registerAll(instancesPath, watcher);
+                            Path context = (Path) event.context();
+                            Path fullPath = ((Path) key.watchable()).resolve(context);
+                            if (Files.isDirectory(fullPath)) {
+                                registerRecursive(fullPath, watcher);
+                            }
                         }
+                        shouldRefresh = true;
+                    }
+
+                    if (shouldRefresh) {
                         refresh();
                     }
+
                     if (!key.reset()) break;
                 }
             } catch (Exception e) {
-                System.err.println("Sidebar Watcher остановлен: " + e.getMessage());
+                System.err.println("Sidebar Watcher error: " + e.getMessage());
             }
         });
         watcherThread.setDaemon(true);
         watcherThread.start();
     }
 
-    private void registerAll(Path start, WatchService watcher) throws java.io.IOException {
-        start.register(watcher, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE);
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(start)) {
+    // Вспомогательный метод для глубокой регистрации
+    private void registerRecursive(Path root, WatchService watcher) throws java.io.IOException {
+        root.register(watcher,
+                StandardWatchEventKinds.ENTRY_CREATE,
+                StandardWatchEventKinds.ENTRY_DELETE,
+                StandardWatchEventKinds.ENTRY_MODIFY);
+
+        // Также регистрируем все существующие папки инстансов
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(root)) {
             for (Path path : stream) {
                 if (Files.isDirectory(path)) {
-                    path.register(watcher, StandardWatchEventKinds.ENTRY_MODIFY);
+                    path.register(watcher,
+                            StandardWatchEventKinds.ENTRY_CREATE,
+                            StandardWatchEventKinds.ENTRY_DELETE,
+                            StandardWatchEventKinds.ENTRY_MODIFY);
                 }
             }
         }

@@ -4,9 +4,8 @@ import com.google.gson.Gson;
 import md.dankert.dankertcraft.utils.OSHelper;
 
 import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -16,14 +15,16 @@ public class VanillaManager {
     private final String workDir;
     private final GameInstaller installer;
     private final Gson gson = new Gson();
-    private String cachedJavaPath = null;
+    private long totalBytesDownloaded = 0; // Для глобального расчета скорости
 
     public VanillaManager(String workDir) {
         this.workDir = workDir;
         this.installer = new GameInstaller(workDir);
     }
 
-    public VersionData prepare(String version) throws IOException {
+    public VersionData prepare(String version, ProgressListener listener) throws IOException {
+        if (listener != null) listener.onProgress("Анализ файлов игры...", 0, 1, 0);
+
         File versionFolder = new File(workDir, "versions/" + version);
         File jsonFile = new File(versionFolder, version + ".json");
         VersionData data;
@@ -33,18 +34,17 @@ public class VanillaManager {
                 data = gson.fromJson(reader, VersionData.class);
             }
         } else {
-            data = installer.setupGame(version);
+            // Загружаем данные о версии и синхронизируем библиотеки
+            data = installer.setupGame(version, listener);
         }
 
-        System.out.println("[VanillaManager] Синхронизация движка игры " + version);
-        installer.setupGame(version);
-        setupJavaRuntime(version);
+        // Установка Java с отслеживанием прогресса
+        setupJavaRuntime(version, listener);
 
         return data;
     }
 
-    public String setupJavaRuntime(String mcVersion) {
-        // Сбрасываем кэш, если версия Java изменилась в логике
+    public String setupJavaRuntime(String mcVersion, ProgressListener listener) {
         int requiredVer = getRequiredJavaVersion(mcVersion);
         File javaFolder = new File(workDir, "runtime/java" + requiredVer);
         File javaBin = new File(javaFolder, "bin/java");
@@ -55,21 +55,55 @@ public class VanillaManager {
         }
 
         try {
-            System.out.println("[Java] Загрузка JRE " + requiredVer + " для " + mcVersion);
-            downloadAndExtractJava(requiredVer, javaFolder);
+            downloadAndExtractJava(requiredVer, javaFolder, listener);
             javaBin.setExecutable(true, false);
             return javaBin.getAbsolutePath();
         } catch (Exception e) {
-            System.err.println("[Java] Критическая ошибка JRE: " + e.getMessage());
+            System.err.println("[Java] Ошибка: " + e.getMessage());
             return "java";
         }
     }
-
+    
     /**
-     * ИСПРАВЛЕННАЯ ЛОГИКА:
-     * На Linux для 1.16.5 и ниже ВСЕГДА используем Java 8.
-     * Это решает проблемы с загрузкой libglfw.so (error=null).
+     * Настраивает Java с явным указанием версии (напр. "Java 17", "Java 21")
      */
+    public String setupJavaRuntime(String mcVersion, String explicitJavaVersion, ProgressListener listener) {
+        int requiredVer = parseJavaVersion(explicitJavaVersion);
+        System.out.println("[VanillaManager] 🔧 Используем явно указанную Java версию: " + requiredVer);
+        
+        File javaFolder = new File(workDir, "runtime/java" + requiredVer);
+        File javaBin = new File(javaFolder, "bin/java");
+
+        if (javaBin.exists()) {
+            if (!javaBin.canExecute()) javaBin.setExecutable(true, false);
+            return javaBin.getAbsolutePath();
+        }
+
+        try {
+            downloadAndExtractJava(requiredVer, javaFolder, listener);
+            javaBin.setExecutable(true, false);
+            return javaBin.getAbsolutePath();
+        } catch (Exception e) {
+            System.err.println("[Java] Ошибка при установке Java " + requiredVer + ": " + e.getMessage());
+            return "java";
+        }
+    }
+    
+    /**
+     * Парсит строку вроде "Java 17" в номер версии
+     */
+    private int parseJavaVersion(String javaVersionStr) {
+        if (javaVersionStr == null) return 17;
+        try {
+            // Извлекаем число из строки "Java 17" → 17
+            String numStr = javaVersionStr.replaceAll("[^0-9]", "");
+            return Integer.parseInt(numStr);
+        } catch (Exception e) {
+            System.err.println("[VanillaManager] Не удалось распарсить версию Java: " + javaVersionStr);
+            return 17; // По умолчанию Java 17
+        }
+    }
+
     private int getRequiredJavaVersion(String mcVersion) {
         if (mcVersion.startsWith("a") || mcVersion.startsWith("b") || mcVersion.startsWith("c") || mcVersion.contains("inf-")) {
             return 8;
@@ -79,36 +113,55 @@ public class VanillaManager {
             String[] parts = cleanV.split("\\.");
             if (parts.length >= 2) {
                 int minor = Integer.parseInt(parts[1]);
-
                 if (minor >= 21) return 21;
                 if (minor >= 17) return 17;
-
-                // Для 1.16.5 и ниже на Linux Java 8 стабильнее всего работает с нативами
                 return 8;
             }
         } catch (Exception ignored) {}
         return 8;
     }
 
-    private void downloadAndExtractJava(int ver, File destFolder) throws Exception {
+    private void downloadAndExtractJava(int ver, File destFolder, ProgressListener listener) throws Exception {
         if (!destFolder.exists()) destFolder.mkdirs();
 
-        String url;
-        switch (ver) {
-            case 21: url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_x64_linux_hotspot_21.0.2_13.tar.gz"; break;
-            case 17: url = "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jre_x64_linux_hotspot_17.0.9_9.tar.gz"; break;
-            default: url = "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u392-b08/OpenJDK8U-jre_x64_linux_hotspot_8u392b08.tar.gz"; break;
-        }
+        String urlStr = switch (ver) {
+            case 21 -> "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.2%2B13/OpenJDK21U-jre_x64_linux_hotspot_21.0.2_13.tar.gz";
+            case 17 -> "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.9%2B9/OpenJDK17U-jre_x64_linux_hotspot_17.0.9_9.tar.gz";
+            default -> "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u392-b08/OpenJDK8U-jre_x64_linux_hotspot_8u392b08.tar.gz";
+        };
+
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        long fileSize = conn.getContentLengthLong();
 
         File tempFile = new File(workDir, "java_temp_" + ver + ".tar.gz");
-        try (InputStream in = new URL(url).openStream()) {
-            Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+        try (InputStream in = conn.getInputStream();
+             FileOutputStream out = new FileOutputStream(tempFile)) {
+
+            byte[] buffer = new byte[8192];
+            int read;
+            long downloaded = 0;
+
+            while ((read = in.read(buffer)) != -1) {
+                out.write(buffer, 0, read);
+                downloaded += read;
+                totalBytesDownloaded += read;
+
+                // Передаем данные в UI: Этап, Прогресс файла (в %), Общий счетчик байт
+                if (listener != null) {
+                    listener.onProgress("Загрузка Java Runtime", (int)((downloaded * 100) / fileSize), 100, totalBytesDownloaded);
+                }
+            }
         }
+
+        if (listener != null) listener.onProgress("Распаковка Java...", 100, 100, totalBytesDownloaded);
 
         ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tempFile.getAbsolutePath(), "-C", destFolder.getAbsolutePath(), "--strip-components=1");
         pb.start().waitFor();
         tempFile.delete();
     }
+
+    // --- ОСТАЛЬНЫЕ МЕТОДЫ (Extract Natives, Classpath и др.) ---
 
     public void extractNatives(VersionData data, File targetNativesDir) throws IOException {
         if (data == null || data.libraries == null) return;
@@ -121,9 +174,7 @@ public class VanillaManager {
 
                 if (nativeArt != null) {
                     File nativeJar = new File(workDir, "libraries/" + nativeArt.path);
-                    if (nativeJar.exists()) {
-                        unzipNatives(nativeJar, targetNativesDir);
-                    }
+                    if (nativeJar.exists()) unzipNatives(nativeJar, targetNativesDir);
                 }
             }
         }
@@ -135,7 +186,6 @@ public class VanillaManager {
             while ((entry = zis.getNextEntry()) != null) {
                 String name = entry.getName();
                 String fileName = new File(name).getName();
-
                 if ((name.endsWith(".so") || name.endsWith(".dll") || name.endsWith(".dylib")) && !name.contains("META-INF")) {
                     File outFile = new File(destDir, fileName);
                     try (FileOutputStream fos = new FileOutputStream(outFile)) {

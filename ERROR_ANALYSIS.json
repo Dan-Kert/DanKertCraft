@@ -1,0 +1,503 @@
+{
+  "projectName": "DanKertCraft - Minecraft Launcher",
+  "analysisDate": "2026-01-15",
+  "totalFiles": 31,
+  "unusedCode": [
+    {
+      "type": "Unused import",
+      "severity": "MEDIUM",
+      "file": "GameLauncher.java",
+      "issue": "Import 'java.util.UUID' is imported but never used",
+      "recommendation": "Remove unused import"
+    },
+    {
+      "type": "Unused method",
+      "severity": "LOW",
+      "file": "FallbackJavaResolver.java",
+      "method": "ensureLibjli(String javaLibDir)",
+      "issue": "Method marked @Deprecated but still used. Logic duplicated in ensureLib(). Can be removed entirely.",
+      "recommendation": "Delete deprecated method and update all references"
+    },
+    {
+      "type": "Unused class feature",
+      "severity": "MEDIUM",
+      "file": "DownloadTask.java",
+      "field": "DownloadProgressListener",
+      "issue": "@FunctionalInterface declared in Downloader.java but only used internally. Not exposed or used elsewhere.",
+      "recommendation": "Consider making it private or removing if truly unused"
+    },
+    {
+      "type": "Unused import",
+      "severity": "LOW",
+      "file": "LauncherUI.java",
+      "issue": "Multiple imports from java.awt and java.io not used comprehensively across all methods",
+      "location": "java.awt.*, java.io.File",
+      "recommendation": "Clean up unused imports"
+    },
+    {
+      "type": "Dead code path",
+      "severity": "HIGH",
+      "file": "RuntimeInstaller.java",
+      "method": "runCommand(String cmd)",
+      "issue": "Method runCommand() defined but never called. Logic is dead code.",
+      "lines": "75-89",
+      "recommendation": "Remove unused method"
+    }
+  ],
+  "duplication": [
+    {
+      "type": "Code duplication - File Download Logic",
+      "severity": "HIGH",
+      "files": ["Downloader.java", "ModManager.java", "GameInstaller.java"],
+      "issue": "Download logic appears 3 different ways - duplicated byte buffer management and stream handling",
+      "example": "byte[] buffer = new byte[8192] appears in multiple places with identical loop structure",
+      "recommendation": "Create unified DownloadHelper class with single implementation"
+    },
+    {
+      "type": "Code duplication - File existence/integrity checks",
+      "severity": "MEDIUM",
+      "files": ["CacheManager.java", "GameInstaller.java", "VanillaManager.java"],
+      "issue": "Multiple implementations of 'needsUpdate()' logic checking file existence, size, and hash",
+      "recommendation": "Create shared FileIntegrityChecker utility class"
+    },
+    {
+      "type": "Code duplication - Configuration read/write",
+      "severity": "MEDIUM",
+      "files": ["ConfigManager.java", "InstanceConfigHelper.java"],
+      "issue": "Both handle JSON read/write with Gson. Gson instance created separately in each class.",
+      "recommendation": "Extract common ConfigBase class or utility for JSON operations"
+    },
+    {
+      "type": "Code duplication - Java/Runtime resolution",
+      "severity": "HIGH",
+      "files": ["VanillaManager.java", "RuntimeInstaller.java", "GameLauncher.java"],
+      "issue": "Java version detection and path resolution duplicated across 3 classes",
+      "methods": ["getRequiredJavaVersion()", "getJavaExecutable()", "setupJavaRuntime()"],
+      "recommendation": "Create JavaRuntimeManager facade class"
+    },
+    {
+      "type": "Code duplication - Platform detection",
+      "severity": "MEDIUM",
+      "files": ["GameInstaller.java", "GameLauncher.java", "VanillaManager.java", "OSHelper.java"],
+      "issue": "System.getProperty('os.name') parsed multiple times with duplicate logic",
+      "recommendation": "Use OSHelper methods consistently instead of inline checks"
+    },
+    {
+      "type": "Code duplication - Asset/Library extraction",
+      "severity": "MEDIUM",
+      "files": ["GameInstaller.java", "VanillaManager.java"],
+      "issue": "ZIP file extraction logic duplicated for natives and assets",
+      "recommendation": "Create unified ZipExtractor utility"
+    },
+    {
+      "type": "Code duplication - Progress reporting",
+      "severity": "MEDIUM",
+      "files": ["GameInstaller.java", "DownloadTask.java"],
+      "issue": "Similar speed calculation and progress message formatting repeated",
+      "recommendation": "Create ProgressCalculator utility class"
+    },
+    {
+      "type": "Code duplication - Exception logging",
+      "severity": "LOW",
+      "files": "All classes",
+      "issue": "Identical try-catch-print pattern: System.err.println('[ClassName] Error: ' + e.getMessage())",
+      "recommendation": "Create LoggerHelper facade or use proper logging framework"
+    }
+  ],
+  "potentialBugs": [
+    {
+      "type": "Null Pointer Exception (NPE)",
+      "severity": "CRITICAL",
+      "file": "GameInstaller.java",
+      "method": "downloadLibraries(VersionData data)",
+      "line": 159,
+      "issue": "No null check before iterating: data.libraries.forEach(). If data is null or data.libraries is null, NPE occurs.",
+      "code": "if (data.libraries == null) return; // Check exists but returns silently - caller doesn't know",
+      "recommendation": "Return meaningful error or throw exception so caller knows installation failed"
+    },
+    {
+      "type": "NPE - Unchecked array access",
+      "severity": "HIGH",
+      "file": "VanillaManager.java",
+      "method": "downloadAndExtractJava()",
+      "issue": "No null check: 'JsonObject packageInfo = releases.get(0).getAsJsonObject().get(...)',releases could be empty",
+      "recommendation": "Check releases.size() > 0 before accessing"
+    },
+    {
+      "type": "NPE - File operations",
+      "severity": "HIGH",
+      "file": "CacheManager.java",
+      "method": "clearOldCache()",
+      "line": 98,
+      "issue": "No null check: File[] files = cacheDir.listFiles(); listFiles() can return null",
+      "code": "for (File file : cacheDir.listFiles()) // NPE if listFiles() returns null",
+      "recommendation": "if (files != null) before loop"
+    },
+    {
+      "type": "NPE - Unclosed resources",
+      "severity": "HIGH",
+      "file": "GameInstaller.java",
+      "method": "downloadLibFile()",
+      "line": 237,
+      "issue": "BufferedInputStream and FileOutputStream created with 'new' but can throw exception before assignment to try-with-resources",
+      "recommendation": "Move stream creation inside try() block"
+    },
+    {
+      "type": "File handle leak",
+      "severity": "MEDIUM",
+      "file": "DownloadTask.java",
+      "method": "runSingleDownload()",
+      "issue": "HttpURLConnection not explicitly closed if exception occurs",
+      "recommendation": "Use try-with-resources or explicitly close connection in finally block"
+    },
+    {
+      "type": "Resource leak - FileReader",
+      "severity": "MEDIUM",
+      "file": "VanillaManager.java",
+      "method": "prepare()",
+      "line": 30,
+      "code": "try (Reader reader = new FileReader(jsonFile)) { data = gson.fromJson(reader, VersionData.class); }",
+      "issue": "Properly closed but pattern repeated. Some usages might miss try-with-resources.",
+      "recommendation": "Audit all FileReader/FileInputStream usage for consistency"
+    },
+    {
+      "type": "Thread safety issue",
+      "severity": "MEDIUM",
+      "file": "GameInstaller.java",
+      "method": "downloadLibraries()",
+      "issue": "totalBytesDownloaded field modified from multiple threads without synchronization",
+      "code": "totalBytesDownloaded += read; // In executor thread without synchronization",
+      "recommendation": "Use AtomicLong for totalBytesDownloaded"
+    },
+    {
+      "type": "Race condition",
+      "severity": "MEDIUM",
+      "file": "CacheManager.java",
+      "method": "getInstance()",
+      "issue": "Singleton pattern with synchronized block, but field is not volatile",
+      "recommendation": "Add volatile keyword to instance field"
+    },
+    {
+      "type": "Concurrency issue",
+      "severity": "MEDIUM",
+      "file": "DownloadTask.java",
+      "field": "paused, currentSpeed, lastTime, lastBytes",
+      "issue": "Multiple volatile fields modified/read from different threads without proper synchronization",
+      "recommendation": "Use synchronized blocks or AtomicBoolean/AtomicReference"
+    },
+    {
+      "type": "Potential NPE - Process output",
+      "severity": "HIGH",
+      "file": "RuntimeInstaller.java",
+      "method": "runCommand()",
+      "issue": "process.getInputStream() not null checked, also process.waitFor() can be interrupted",
+      "recommendation": "Add null check and handle InterruptedException properly"
+    },
+    {
+      "type": "File path traversal vulnerability",
+      "severity": "MEDIUM",
+      "file": "InstanceView.java",
+      "method": "loadIcon()",
+      "issue": "No validation of icon path - user can potentially specify ../../../etc/passwd",
+      "recommendation": "Validate that icon path is within icons directory"
+    },
+    {
+      "type": "Missing error handling",
+      "severity": "HIGH",
+      "file": "GameLauncher.java",
+      "method": "launch()",
+      "line": 160,
+      "issue": "Silently falls back to 'java' if custom Java not found - user doesn't know system Java will be used",
+      "recommendation": "Log warning and notify user through UI"
+    },
+    {
+      "type": "Potential infinite loop",
+      "severity": "MEDIUM",
+      "file": "GameInstaller.java",
+      "method": "checkPause()",
+      "issue": "while (isPaused && !shouldStop) with sleep(100) - if shouldStop becomes true mid-pause, thread might deadlock",
+      "recommendation": "Use notify/wait pattern or CountDownLatch"
+    }
+  ],
+  "architectureIssues": [
+    {
+      "type": "God Object",
+      "severity": "HIGH",
+      "class": "GameInstaller.java",
+      "issue": "Class has 400+ lines handling too many concerns: downloading, extracting, progress tracking, pause/resume, native handling",
+      "responsibilities": ["Download management", "Library extraction", "Asset extraction", "Progress reporting", "Pause/Resume", "Thread pool management"],
+      "recommendation": "Split into: GameDownloader, LibraryExtractor, ProgressReporter, PauseManager"
+    },
+    {
+      "type": "God Object",
+      "severity": "HIGH",
+      "class": "GameLauncher.java",
+      "issue": "335 lines handling too many concerns: Java setup, classpath building, natives extraction, game launching",
+      "responsibilities": ["Java runtime resolution", "Classpath construction", "Natives management", "Process launching", "Logging"],
+      "recommendation": "Split into: JavaRuntimeSetup, ClasspathBuilder, NativesManager, GameProcess"
+    },
+    {
+      "type": "Mixed concerns",
+      "severity": "MEDIUM",
+      "class": "VanillaManager.java",
+      "issue": "Handles game setup AND Java runtime setup AND native extraction - violates Single Responsibility",
+      "recommendation": "Extract JavaRuntimeManager and NativesExtractor into separate classes"
+    },
+    {
+      "type": "Circular dependency",
+      "severity": "MEDIUM",
+      "classes": ["GameInstaller.java", "GameLauncher.java", "VanillaManager.java"],
+      "issue": "GameLauncher uses VanillaManager, VanillaManager uses GameInstaller, GameInstaller could need GameLauncher info",
+      "recommendation": "Introduce dependency injection or facade pattern"
+    },
+    {
+      "type": "Tight coupling",
+      "severity": "MEDIUM",
+      "issue": "UI classes (LauncherUI, InstanceView) directly instantiate core classes (GameLauncher, FabricManager)",
+      "recommendation": "Use factory pattern or dependency injection container"
+    },
+    {
+      "type": "Singleton overuse",
+      "severity": "MEDIUM",
+      "classes": ["ConfigManager.java", "CacheManager.java"],
+      "issue": "Static getInstance() pattern prevents testing and creates global state",
+      "recommendation": "Use dependency injection instead of singletons"
+    },
+    {
+      "type": "Missing abstraction",
+      "severity": "MEDIUM",
+      "classes": ["ModAPI.java", "ModrinthAPI.java"],
+      "issue": "Two separate mod API implementations with no common interface - violates DRY",
+      "recommendation": "Create ModProvider interface and make both inherit from it"
+    },
+    {
+      "type": "God Class - UI",
+      "severity": "MEDIUM",
+      "class": "LauncherUI.java",
+      "issue": "290+ lines: handles layout, game grid, recent games, icon loading, game launching",
+      "recommendation": "Split into: GameGridComponent, RecentGamesComponent, LauncherController"
+    },
+    {
+      "type": "Broken Facade pattern",
+      "severity": "MEDIUM",
+      "class": "DownloadTask.java",
+      "issue": "Implements ProgressListener but also extends Task - mixing concerns of download task and UI reporting",
+      "recommendation": "Separate DownloadExecutor (Task) from ProgressReporter (Listener)"
+    },
+    {
+      "type": "Wrong abstraction level",
+      "severity": "LOW",
+      "file": "VersionData.java",
+      "issue": "Massive data class with 30+ inner classes - should be split into separate model files per domain",
+      "recommendation": "Create separate model files: ManifestModel.java, LibraryModel.java, AssetModel.java"
+    },
+    {
+      "type": "Inconsistent architecture",
+      "severity": "MEDIUM",
+      "issue": "Some classes use Gson directly, others use helper methods - no consistent serialization strategy",
+      "recommendation": "Create JsonSerializer interface with implementations for each model type"
+    }
+  ],
+  "performanceProblems": [
+    {
+      "type": "Blocking operation in UI thread",
+      "severity": "HIGH",
+      "file": "LauncherUI.java",
+      "method": "startLaunchThread()",
+      "issue": "gameProcess.waitFor() called in background task but not in separate thread - blocks UI",
+      "recommendation": "Run in separate thread or use ProcessHandle to avoid blocking"
+    },
+    {
+      "type": "Inefficient string concatenation",
+      "severity": "LOW",
+      "file": "Multiple files",
+      "issue": "Using + operator for strings in loops (e.g., 'hexString.append(hex)' is good, but 'url + (repo.endsWith(...) ? ... : ...)')",
+      "recommendation": "Use StringBuilder for concatenations in loops"
+    },
+    {
+      "type": "N+1 problem",
+      "severity": "MEDIUM",
+      "file": "GameInstaller.java",
+      "method": "downloadAssets()",
+      "issue": "For each asset, checking file existence and calculating hash individually - could batch operations",
+      "recommendation": "Pre-calculate all hashes and check all files in single pass"
+    },
+    {
+      "type": "Unnecessary stream copying",
+      "severity": "MEDIUM",
+      "file": "DownloadTask.java",
+      "method": "runSingleDownload()",
+      "issue": "Reading entire file into ByteArrayOutputStream before writing - wastes memory for large files",
+      "recommendation": "Use direct streaming instead of buffering"
+    },
+    {
+      "type": "Inefficient algorithm",
+      "severity": "MEDIUM",
+      "file": "GameInstaller.java",
+      "method": "downloadLibraries()",
+      "issue": "Fixed thread pool of 10 threads regardless of system capabilities",
+      "recommendation": "Use Runtime.getRuntime().availableProcessors() to scale thread count"
+    },
+    {
+      "type": "Excessive logging",
+      "severity": "MEDIUM",
+      "file": "GameLauncher.java",
+      "method": "launch()",
+      "issue": "Prints 50+ log lines with detailed file listings - major I/O in critical path",
+      "lines": "179-293",
+      "recommendation": "Move diagnostic logging to debug level, print summary only in info"
+    },
+    {
+      "type": "Repeated file I/O",
+      "severity": "MEDIUM",
+      "file": "LauncherUI.java",
+      "method": "refreshGamesGrid()",
+      "issue": "Lists directory content multiple times per refresh - could cache",
+      "recommendation": "Cache directory listing and invalidate only on known changes"
+    },
+    {
+      "type": "Regex compilation in loop",
+      "severity": "LOW",
+      "file": "VanillaManager.java",
+      "method": "convertMavenToPath()",
+      "issue": "Would compile regex if called in loop (currently called per library)",
+      "recommendation": "Pre-compile regex pattern as static final"
+    },
+    {
+      "type": "Memory leak potential",
+      "severity": "MEDIUM",
+      "file": "DownloadStatusBar.java",
+      "field": "logArea",
+      "issue": "TextArea keeps growing with log entries - no cleanup or size limit",
+      "recommendation": "Implement circular buffer with max size limit"
+    },
+    {
+      "type": "Inefficient UI refresh",
+      "severity": "MEDIUM",
+      "file": "DownloadStatusBar.java",
+      "method": "start()",
+      "issue": "Adds listener that updates UI on every single progress update - could batch updates",
+      "recommendation": "Use throttling to update UI at most every 100ms"
+    }
+  ],
+  "loggingIssues": [
+    {
+      "type": "System.out/err instead of logger",
+      "severity": "HIGH",
+      "count": 100,
+      "files": "All files",
+      "issue": "100+ instances of System.out.println() and System.err.println() - no proper logging framework",
+      "examples": ["CacheManager.java:40", "ConfigManager.java:42", "GameLauncher.java:36", "etc."],
+      "recommendation": "Replace with SLF4J or java.util.logging - configure appenders for file/console"
+    },
+    {
+      "type": "Inconsistent logging prefixes",
+      "severity": "MEDIUM",
+      "issue": "Each class uses different format: '[ClassName]', '[ModName]', no timestamps, no log levels",
+      "examples": ["[Cache]", "[GameLauncher]", "[ModWindow]"],
+      "recommendation": "Use structured logging with proper logger configuration"
+    },
+    {
+      "type": "Missing critical logs",
+      "severity": "HIGH",
+      "file": "GameInstaller.java",
+      "issue": "downloadLibraries() silently fails if installer encounters error - user doesn't see it",
+      "line": 207,
+      "recommendation": "Log all errors and propagate them to UI layer"
+    },
+    {
+      "type": "Too verbose logging",
+      "severity": "MEDIUM",
+      "file": "GameLauncher.java",
+      "method": "launch()",
+      "issue": "Lines 179-293: Prints every JAR file, every environment variable, detailed lib listings",
+      "recommendation": "Keep only critical info in INFO level, move details to DEBUG"
+    },
+    {
+      "type": "Missing exception logging",
+      "severity": "MEDIUM",
+      "file": "InstanceView.java",
+      "method": "loadConfig(), updateConfigField()",
+      "issue": "Exceptions caught and silently ignored - silently fails with no user feedback",
+      "recommendation": "Log exception stack traces, show error dialogs to user"
+    },
+    {
+      "type": "Emoji in logs",
+      "severity": "LOW",
+      "issue": "Uses emojis in logs (🔍, ✓, ✗, etc.) - not machine-readable, breaks log parsing",
+      "recommendation": "Use text markers [OK], [ERROR], [WARN] instead"
+    },
+    {
+      "type": "No error context",
+      "severity": "MEDIUM",
+      "file": "ModAPI.java",
+      "method": "searchMods()",
+      "issue": "Returns empty list on error without logging what went wrong",
+      "line": 32,
+      "recommendation": "Log error and return error wrapper or throw exception"
+    },
+    {
+      "type": "Uncaught exception logging",
+      "severity": "HIGH",
+      "file": "LauncherUI.java",
+      "method": "startLaunchThread()",
+      "issue": "e.printStackTrace() used instead of logger.error()",
+      "recommendation": "Use proper error logging to file"
+    }
+  ],
+  "summary": {
+    "criticalIssues": 5,
+    "highIssues": 18,
+    "mediumIssues": 42,
+    "lowIssues": 8,
+    "totalIssues": 73,
+    "overallHealthScore": "5.2/10",
+    "mainProblems": [
+      "No proper logging framework - 100+ System.out.println() calls",
+      "Multiple God Objects with 300+ lines handling diverse concerns",
+      "Code duplication across download/extraction logic",
+      "Potential NPE and resource leaks in critical paths",
+      "Singleton pattern prevents testing",
+      "Tight coupling between UI and core logic",
+      "Thread safety issues in concurrent operations",
+      "No dependency injection - hard to test"
+    ],
+    "priorityFixes": [
+      {
+        "rank": 1,
+        "title": "Add logging framework (SLF4J/Log4j)",
+        "effort": "HIGH",
+        "impact": "HIGH",
+        "description": "Replace all System.out/err with proper logging"
+      },
+      {
+        "rank": 2,
+        "title": "Refactor God Objects",
+        "effort": "HIGH",
+        "impact": "HIGH",
+        "description": "Split GameInstaller, GameLauncher into focused classes"
+      },
+      {
+        "rank": 3,
+        "title": "Extract duplicate logic into utilities",
+        "effort": "MEDIUM",
+        "impact": "MEDIUM",
+        "description": "Create DownloadHelper, FileIntegrityChecker, JavaRuntimeManager"
+      },
+      {
+        "rank": 4,
+        "title": "Fix NPE risks and resource leaks",
+        "effort": "MEDIUM",
+        "impact": "HIGH",
+        "description": "Add null checks and proper resource management"
+      },
+      {
+        "rank": 5,
+        "title": "Add unit tests and introduce DI",
+        "effort": "HIGH",
+        "impact": "HIGH",
+        "description": "Replace singletons with DI container"
+      }
+    ]
+  }
+}

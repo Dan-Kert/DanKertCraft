@@ -15,7 +15,6 @@ import md.dankert.dankertcraft.utils.OSHelper;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.function.Consumer;

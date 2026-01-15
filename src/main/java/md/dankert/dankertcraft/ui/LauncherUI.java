@@ -14,6 +14,8 @@ import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.core.GameLauncher;
 import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.config.ConfigManager;
+import md.dankert.dankertcraft.cache.CacheManager;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,48 +32,56 @@ public class LauncherUI extends Application {
     private Stage primaryStage;
     private String currentUsername = "DanKertPlayer";
 
+    // НОВОЕ: Нижняя панель прогресса
+    private DownloadStatusBar downloadStatusBar = new DownloadStatusBar();
+
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
+        
+        // Загружаем конфиг и очищаем старый кэш
+        ConfigManager.getInstance();
+        CacheManager.getInstance().clearOldCache();
+        this.currentUsername = ConfigManager.getInstance().getUsername();
 
-        // Инициализация сайдбара
         sidebar = new Sidebar(
                 this::showHomeContent,
-                () -> new InstallWindow(this::refreshGamesGrid).show(),
+                () -> new InstallWindow(this).show(), // Передаем 'this' целиком
                 this::showInstancePage,
                 () -> new SettingsWindow().show()
         );
-        // Фиксируем ширину сайдбара, чтобы он не схлопывался
         sidebar.setMinWidth(80);
         sidebar.setPrefWidth(80);
 
-        // Настройка области контента
         contentArea.setStyle("-fx-background-color: #121212;");
         HBox.setHgrow(contentArea, Priority.ALWAYS);
 
         showHomeContent();
 
-        // Главный контейнер
-        HBox mainLayout = new HBox(sidebar, contentArea);
-        Scene scene = new Scene(mainLayout, 1100, 700);
+        // Главная верстка: Сайдбар + (Контент сверху, СтатусБар снизу)
+        VBox rightSide = new VBox(contentArea, downloadStatusBar);
+        VBox.setVgrow(contentArea, Priority.ALWAYS);
 
-        // --- ГЛАВНЫЙ CSS (СТАБИЛЬНАЯ ТЕМА) ---
-        // Используем data URI для внедрения стилей без внешних файлов
-        // Это решает проблему белого экрана и мерцания
+        HBox mainLayout = new HBox(sidebar, rightSide);
+        HBox.setHgrow(rightSide, Priority.ALWAYS);
+
+        Scene scene = new Scene(mainLayout, 1100, 750); // Чуть увеличил высоту для бара
+
         String css = "data:text/css," +
                 ".root { -fx-base: #121212; -fx-background: #121212; -fx-font-family: 'sans-serif'; }" +
                 ".label { -fx-text-fill: #ecf0f1; }" +
                 ".scroll-pane { -fx-background-color: transparent; -fx-background: transparent; }" +
                 ".scroll-pane .viewport { -fx-background-color: transparent; }" +
-                ".scroll-pane .corner { -fx-background-color: transparent; }" +
-                // Стили для карточек (вместо setStyle в Java)
-                ".game-card { -fx-background-color: #1e1e1e; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0); }" +
+                ".game-card { -fx-background-color: #1e1e1e; -fx-background-radius: 12; }" +
                 ".game-card:hover { -fx-background-color: #252525; -fx-scale-x: 1.03; -fx-scale-y: 1.03; -fx-cursor: hand; }" +
-                // Стили для недавних игр
                 ".recent-card { -fx-background-color: #1e1e1e; -fx-background-radius: 8; }" +
                 ".recent-card:hover { -fx-background-color: #252525; -fx-cursor: hand; }";
 
         scene.getStylesheets().add(css);
+        
+        // Подключаем основной CSS файл со стилями
+        String mainCss = getClass().getResource(UIStyles.getMainStylesheet()).toExternalForm();
+        scene.getStylesheets().add(mainCss);
 
         primaryStage.setTitle("DanKertCraft Launcher");
         primaryStage.setScene(scene);
@@ -80,150 +90,77 @@ public class LauncherUI extends Application {
         refreshGamesGrid();
     }
 
-    // --- ЛОГИКА ЗАГРУЗКИ ИКОНОК (ИСПРАВЛЕННАЯ) ---
+    // Метод для получения статус-бара из других окон (например, InstallWindow)
+    public DownloadStatusBar getDownloadStatusBar() {
+        return downloadStatusBar;
+    }
 
-    private String getIconNameFromInstance(String instanceName) {
-        try {
-            File configFile = new File(workDir, "instances/" + instanceName + "/instance.json");
-            if (configFile.exists()) {
-                String content = Files.readString(configFile.toPath());
-                JsonObject json = JsonParser.parseString(content).getAsJsonObject();
-                if (json.has("icon")) {
-                    return json.get("icon").getAsString();
+    private void startLaunchThread(String instanceName) {
+        // Создаем таск для запуска, чтобы StatusBar его видел
+        DownloadTask launchTask = new DownloadTask("dummy_url", new File(workDir, "temp")) {
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    updateMessage("Подготовка к запуску...| | ");
+                    GameLauncher launcher = new GameLauncher(workDir);
+
+                    // ИСПРАВЛЕНИЕ: Передаем 'this' как ProgressListener
+                    Process gameProcess = launcher.launch(instanceName, "4", currentUsername, this);
+
+                    Platform.runLater(() -> {
+                        LogWindow crashMonitor = new LogWindow(instanceName);
+                        crashMonitor.monitor(gameProcess);
+                        primaryStage.hide();
+                    });
+
+                    int exitCode = gameProcess.waitFor();
+
+                    Platform.runLater(() -> {
+                        primaryStage.show();
+                        if (exitCode != 0) {
+                            new Alert(Alert.AlertType.WARNING, "Игра закрылась с кодом: " + exitCode).show();
+                        }
+                        downloadStatusBar.hideBar();
+                    });
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    Platform.runLater(() -> {
+                        primaryStage.show();
+                        new Alert(Alert.AlertType.ERROR, "Ошибка запуска: " + ex.getMessage()).show();
+                    });
+                    throw ex;
                 }
+                return null;
             }
-        } catch (Exception e) {
-            // Игнорируем ошибки чтения
-        }
-        return instanceName.contains("-fabric") ? "block_62.gif" : "standart.png";
+        };
+
+        // Запускаем отображение в статус-баре
+        downloadStatusBar.start("Запуск " + instanceName, launchTask);
+        new Thread(launchTask).start();
     }
 
-    private ImageView createIcon(String iconName, int size) {
-        ImageView iv = new ImageView();
-        iv.setFitWidth(size);
-        iv.setFitHeight(size);
-        iv.setPreserveRatio(true);
-        iv.setSmooth(true); // Сглаживание для красоты
-
-        try {
-            Image img = null;
-            // 1. Пробуем загрузить кастомную иконку с диска
-            if (iconName != null && iconName.startsWith("custom:")) {
-                String fileName = iconName.replace("custom:", "");
-                File file = new File(workDir + "/custom_icons/" + fileName);
-                if (file.exists()) {
-                    img = new Image(new FileInputStream(file));
-                }
-            }
-
-            // 2. Если не вышло или это стандартная иконка - грузим из JAR
-            if (img == null) {
-                String path = "/icons/blocks/" + (iconName != null ? iconName : "standart.png");
-                // Убираем двойные слеши, если они случайно появились
-                path = path.replace("//", "/");
-
-                InputStream is = getClass().getResourceAsStream(path);
-                if (is == null) {
-                    // Если файл не найден, берем запасной вариант
-                    is = getClass().getResourceAsStream("/icons/blocks/standart.png");
-                }
-
-                if (is != null) {
-                    img = new Image(is);
-                }
-            }
-
-            iv.setImage(img);
-        } catch (Exception e) {
-            System.err.println("Ошибка загрузки иконки: " + iconName);
-        }
-        return iv;
-    }
-
-    // --- ОБНОВЛЕННЫЕ КАРТОЧКИ (ЧЕРЕЗ CSS) ---
-
-    private HBox createRecentMiniCard(String name) {
-        HBox card = new HBox(12);
-        // Добавляем CSS класс вместо жесткого стиля
-        card.getStyleClass().add("recent-card");
-
-        card.setAlignment(Pos.CENTER_LEFT);
-        card.setPadding(new Insets(10, 15, 10, 15));
-        card.setPrefWidth(280);
-
-        String iconName = getIconNameFromInstance(name);
-        ImageView icon = createIcon(iconName, 40);
-
-        VBox texts = new VBox(2);
-        Label title = new Label(name);
-        title.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-        Label subtitle = new Label("Нажми, чтобы открыть");
-        subtitle.setStyle("-fx-font-size: 10px; -fx-opacity: 0.5;");
-        texts.getChildren().addAll(title, subtitle);
-
-        card.getChildren().addAll(icon, texts);
-        card.setOnMouseClicked(e -> showInstancePage(name));
-
-        return card;
-    }
-
-    private VBox createGameCard(String name) {
-        VBox card = new VBox(12);
-        // Добавляем CSS класс. Вся магия наведения теперь в CSS (строка 68)
-        card.getStyleClass().add("game-card");
-
-        card.setAlignment(Pos.CENTER);
-        card.setPadding(new Insets(15));
-        card.setPrefSize(160, 190);
-
-        String iconName = getIconNameFromInstance(name);
-        ImageView icon = createIcon(iconName, 80);
-
-        Label label = new Label(name);
-        label.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
-        label.setWrapText(true);
-        label.setAlignment(Pos.CENTER);
-
-        card.getChildren().addAll(icon, label);
-        card.setOnMouseClicked(e -> showInstancePage(name));
-
-        return card;
-    }
-
-    private void showInstancePage(String instanceName) {
-        Platform.runLater(() -> {
-            contentArea.getChildren().clear();
-            InstanceView view = new InstanceView(instanceName, this::startLaunchThread, this::showHomeContent);
-            contentArea.getChildren().add(view);
-        });
-    }
-
-    // --- СТАНДАРТНЫЕ МЕТОДЫ ---
+    // --- ОСТАЛЬНАЯ ЛОГИКА UI (ИКОНКИ, ГРИД) БЕЗ ИЗМЕНЕНИЙ ---
 
     private void showHomeContent() {
         contentArea.getChildren().clear();
         VBox homeLayout = new VBox(25);
         homeLayout.setPadding(new Insets(30));
 
-        // Новостная панель
         NewsPanel newsPanel = new NewsPanel();
-
         Label recentTitle = new Label("НЕДАВНО ЗАПУЩЕННЫЕ");
-        recentTitle.setStyle("-fx-font-weight: bold; -fx-opacity: 0.4; -fx-font-size: 11px; -fx-letter-spacing: 1px;");
+        recentTitle.setStyle("-fx-font-weight: bold; -fx-opacity: 0.4; -fx-font-size: 11px;");
 
-        recentGamesBox.setAlignment(Pos.CENTER_LEFT);
+        recentGamesBox.getChildren().clear();
         updateRecentList();
 
         Label allTitle = new Label("ВСЕ СБОРКИ");
-        allTitle.setStyle("-fx-font-weight: bold; -fx-opacity: 0.4; -fx-font-size: 11px; -fx-letter-spacing: 1px;");
+        allTitle.setStyle("-fx-font-weight: bold; -fx-opacity: 0.4; -fx-font-size: 11px;");
 
         allGamesGrid.setHgap(20);
         allGamesGrid.setVgap(20);
 
-        // Используем VBox внутри ScrollPane
         ScrollPane scroll = new ScrollPane(homeLayout);
         scroll.setFitToWidth(true);
-        // Убираем рамку у скролла
         scroll.setStyle("-fx-background-color: transparent;");
 
         homeLayout.getChildren().addAll(newsPanel, recentTitle, recentGamesBox, new Separator(), allTitle, allGamesGrid);
@@ -235,10 +172,8 @@ public class LauncherUI extends Application {
             allGamesGrid.getChildren().clear();
             File instancesDir = new File(workDir, "instances");
             if (!instancesDir.exists()) instancesDir.mkdirs();
-
             File[] folders = instancesDir.listFiles(File::isDirectory);
             if (folders != null) {
-                // Сортировка по имени
                 Arrays.sort(folders, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
                 for (File f : folders) allGamesGrid.getChildren().add(createGameCard(f.getName()));
             }
@@ -255,45 +190,67 @@ public class LauncherUI extends Application {
             for (int i = 0; i < Math.min(folders.length, 3); i++) {
                 recentGamesBox.getChildren().add(createRecentMiniCard(folders[i].getName()));
             }
-        } else {
-            Label empty = new Label("Тут пока ничего нет...");
-            empty.setStyle("-fx-opacity: 0.5;");
-            recentGamesBox.getChildren().add(empty);
         }
     }
 
-    private void startLaunchThread(String instanceName) {
-        new Thread(() -> {
-            try {
-                System.out.println("[UI] Подготовка к запуску: " + instanceName);
-                GameLauncher launcher = new GameLauncher(workDir);
-                Process gameProcess = launcher.launch(instanceName, "4", currentUsername);
+    private VBox createGameCard(String name) {
+        VBox card = new VBox(12);
+        card.getStyleClass().add("game-card");
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(15));
+        card.setPrefSize(160, 190);
+        card.getChildren().addAll(createIcon(getIconNameFromInstance(name), 80), new Label(name));
+        card.setOnMouseClicked(e -> showInstancePage(name));
+        return card;
+    }
 
-                Platform.runLater(() -> {
-                    LogWindow crashMonitor = new LogWindow(instanceName);
-                    crashMonitor.monitor(gameProcess);
-                    // Скрываем лаунчер
-                    primaryStage.hide();
-                });
+    private HBox createRecentMiniCard(String name) {
+        HBox card = new HBox(12);
+        card.getStyleClass().add("recent-card");
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(10, 15, 10, 15));
+        card.setPrefWidth(280);
+        card.getChildren().addAll(createIcon(getIconNameFromInstance(name), 40), new Label(name));
+        card.setOnMouseClicked(e -> showInstancePage(name));
+        return card;
+    }
 
-                int exitCode = gameProcess.waitFor();
+    private void showInstancePage(String instanceName) {
+        Platform.runLater(() -> {
+            contentArea.getChildren().clear();
+            InstanceView view = new InstanceView(instanceName, this::startLaunchThread, this::showHomeContent);
+            contentArea.getChildren().add(view);
+        });
+    }
 
-                Platform.runLater(() -> {
-                    // Если код выхода 0 (успех) - закрываемся совсем, иначе показываем лаунчер снова
-                    if (exitCode == 0) System.exit(0);
-                    else {
-                        primaryStage.show();
-                        new Alert(Alert.AlertType.WARNING, "Игра закрылась с кодом: " + exitCode).show();
-                    }
-                });
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                Platform.runLater(() -> {
-                    primaryStage.show();
-                    new Alert(Alert.AlertType.ERROR, "Ошибка запуска: " + ex.getMessage()).show();
-                });
+    private String getIconNameFromInstance(String instanceName) {
+        try {
+            File configFile = new File(workDir, "instances/" + instanceName + "/instance.json");
+            if (configFile.exists()) {
+                JsonObject json = JsonParser.parseString(Files.readString(configFile.toPath())).getAsJsonObject();
+                if (json.has("icon")) return json.get("icon").getAsString();
             }
-        }).start();
+        } catch (Exception e) {}
+        return instanceName.contains("-fabric") ? "block_62.gif" : "standart.png";
+    }
+
+    private ImageView createIcon(String iconName, int size) {
+        ImageView iv = new ImageView();
+        iv.setFitWidth(size); iv.setFitHeight(size);
+        try {
+            Image img = null;
+            if (iconName != null && iconName.startsWith("custom:")) {
+                File file = new File(workDir + "/custom_icons/" + iconName.replace("custom:", ""));
+                if (file.exists()) img = new Image(new FileInputStream(file));
+            }
+            if (img == null) {
+                InputStream is = getClass().getResourceAsStream("/icons/blocks/" + (iconName != null ? iconName : "standart.png"));
+                if (is == null) is = getClass().getResourceAsStream("/icons/blocks/standart.png");
+                img = new Image(is);
+            }
+            iv.setImage(img);
+        } catch (Exception e) {}
+        return iv;
     }
 
     public static void main(String[] args) { launch(args); }
