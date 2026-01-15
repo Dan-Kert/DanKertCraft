@@ -38,15 +38,16 @@ public class LauncherUI extends Application {
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
-        
-        // Загружаем конфиг и очищаем старый кэш
+
+        // 1. Загрузка данных
         ConfigManager.getInstance();
         CacheManager.getInstance().clearOldCache();
         this.currentUsername = ConfigManager.getInstance().getUsername();
 
+        // 2. Инициализация UI компонентов
         sidebar = new Sidebar(
                 this::showHomeContent,
-                () -> new InstallWindow(this).show(), // Передаем 'this' целиком
+                () -> new InstallWindow(this).show(),
                 this::showInstancePage,
                 () -> new SettingsWindow().show()
         );
@@ -58,15 +59,16 @@ public class LauncherUI extends Application {
 
         showHomeContent();
 
-        // Главная верстка: Сайдбар + (Контент сверху, СтатусБар снизу)
+        // 3. Компоновка (Layout)
         VBox rightSide = new VBox(contentArea, downloadStatusBar);
         VBox.setVgrow(contentArea, Priority.ALWAYS);
 
         HBox mainLayout = new HBox(sidebar, rightSide);
         HBox.setHgrow(rightSide, Priority.ALWAYS);
 
-        Scene scene = new Scene(mainLayout, 1100, 750); // Чуть увеличил высоту для бара
+        Scene scene = new Scene(mainLayout, 1100, 750);
 
+        // 4. Стилизация
         String css = "data:text/css," +
                 ".root { -fx-base: #121212; -fx-background: #121212; -fx-font-family: 'sans-serif'; }" +
                 ".label { -fx-text-fill: #ecf0f1; }" +
@@ -76,17 +78,38 @@ public class LauncherUI extends Application {
                 ".game-card:hover { -fx-background-color: #252525; -fx-scale-x: 1.03; -fx-scale-y: 1.03; -fx-cursor: hand; }" +
                 ".recent-card { -fx-background-color: #1e1e1e; -fx-background-radius: 8; }" +
                 ".recent-card:hover { -fx-background-color: #252525; -fx-cursor: hand; }";
-
         scene.getStylesheets().add(css);
-        
-        // Подключаем основной CSS файл со стилями
-        String mainCss = getClass().getResource(UIStyles.getMainStylesheet()).toExternalForm();
-        scene.getStylesheets().add(mainCss);
 
+        try {
+            String mainCss = getClass().getResource(UIStyles.getMainStylesheet()).toExternalForm();
+            scene.getStylesheets().add(mainCss);
+        } catch (Exception e) {
+            System.err.println("CSS файл не найден: " + e.getMessage());
+        }
+
+        // 5. Настройка Stage (Окна)
         primaryStage.setTitle("DanKertCraft Launcher");
+
+        // УСТАНОВКА ИКОНКИ
+        try {
+            // Если ты хочешь использовать именно logo.ico (для Windows),
+            // JavaFX может его не прочитать. Лучше использовать .png версию иконки.
+            InputStream iconStream = getClass().getResourceAsStream("/icons/minecraft.png");
+            if (iconStream != null) {
+                primaryStage.getIcons().add(new Image(iconStream));
+            } else {
+                // Если minecraft.png нет, попробуем взять иконку блока
+                InputStream fallback = getClass().getResourceAsStream("/icons/blocks/standart.png");
+                if (fallback != null) primaryStage.getIcons().add(new Image(fallback));
+            }
+        } catch (Exception e) {
+            System.out.println("Ошибка загрузки иконки: " + e.getMessage());
+        }
+
         primaryStage.setScene(scene);
         primaryStage.show();
 
+        // 6. Финальная загрузка данных в грид
         refreshGamesGrid();
     }
 

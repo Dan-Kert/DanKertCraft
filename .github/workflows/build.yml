@@ -14,37 +14,43 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Download JavaFX Modules via Maven
+      - name: Download JavaFX Modules
         run: |
           mkdir javafx-sdk
           $modules = "controls", "fxml", "graphics", "media", "base"
           foreach ($mod in $modules) {
             $url = "https://repo1.maven.org/maven2/org/openjfx/javafx-$mod/17.0.10/javafx-$mod-17.0.10-win.jar"
-            echo "Downloading $mod..."
             Invoke-WebRequest -Uri $url -OutFile "javafx-sdk/javafx-$mod.jar"
           }
 
       - name: Build JAR and EXE
         run: |
+          # Создаем временную папку для сборки классов
           if (!(Test-Path out_build)) { mkdir out_build }
+          
+          # Собираем список всех Java файлов
           $sources = Get-ChildItem -Path src/main/java -Filter *.java -Recurse | Resolve-Path -Relative
           
-          # 1. Компиляция
+          # 1. Компиляция (подключаем Gson из папки libs и JavaFX)
           javac -encoding utf8 `
-                -cp "javafx-sdk/*;libs/*" `
+                -cp "javafx-sdk/*;libs/gson-2.10.1.jar" `
                 -d out_build $sources
           
-          # 2. Ресурсы
+          # 2. Копируем ресурсы (иконки блоков, стили)
           if (Test-Path src/main/resources) {
             Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
           }
           
-          # 3. JAR
+          # 3. Создаем JAR файл (DanKertCraft.jar)
           jar --create --file DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
           
-          # 4. Собираем EXE (ДОБАВЛЕНЫ СЕТЕВЫЕ МОДУЛИ)
+          # 4. Сборка EXE через jpackage
+          # Используем logo.ico из корня проекта
           jpackage --type exe `
-            --name DanKertLauncher `
+            --name "DanKertCraft" `
+            --vendor "DanKert" `
+            --description "The Ultimate Minecraft Launcher" `
+            --icon "logo.ico" `
             --input . `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
@@ -52,10 +58,13 @@ jobs:
             --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,jdk.crypto.ec,java.net.http `
             --win-shortcut `
             --win-menu `
-            --vendor "DanKertCraft"
+            --win-dir-chooser `
+            --win-shortcut-prompt `
+            --install-dir "DanKertCraft" `
+            --temp out_temp
 
       - name: Upload EXE Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DanKertLauncher-Windows
+          name: DanKertCraft-Windows-Installer
           path: "*.exe"
