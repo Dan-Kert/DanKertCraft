@@ -1,6 +1,7 @@
 package md.dankert.dankertcraft.core;
 
 import com.google.gson.Gson;
+import md.dankert.dankertcraft.utils.Logger;
 import com.google.gson.JsonArray;
 import md.dankert.dankertcraft.utils.Downloader;
 import java.io.IOException;
@@ -39,7 +40,7 @@ public class FabricManager {
             throw new RuntimeException("Fabric не поддерживает версии старше 1.14");
         }
 
-        System.out.println("[Fabric] Получение метаданных для версии: " + mcVersion);
+        Logger.info("[Fabric] Получение метаданных для версии: " + mcVersion);
 
         // 1. Получаем последнюю версию Loader для этой версии MC
         String loaderMetaUrl = "https://meta.fabricmc.net/v2/versions/loader/" + mcVersion;
@@ -62,7 +63,7 @@ public class FabricManager {
         VersionData fabricData = gson.fromJson(profileJson, VersionData.class);
 
         // 3. Скачиваем библиотеки Fabric (интермедиар, лоадер и т.д.)
-        System.out.println("[Fabric] Скачивание библиотек Fabric...");
+        Logger.info("[Fabric] Скачивание библиотек Fabric...");
         installer.downloadLibraries(fabricData);
 
         return fabricData;

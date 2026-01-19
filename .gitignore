@@ -1,7 +1,20 @@
-target/
-instances/
-assets/
-runtime/
-libraries/
-*.log
+# Скомпилированный код и билды
+/build/
+/out/
+/target/
+*.class
+*.jar
+*.war
+
+# Настройки IDE (IntelliJ IDEA)
 .idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Логи и временные файлы
+*.log
+logs/
+temp/
+tmp/

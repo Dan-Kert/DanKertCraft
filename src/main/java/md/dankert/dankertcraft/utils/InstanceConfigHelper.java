@@ -1,6 +1,7 @@
 package md.dankert.dankertcraft.utils;
 
 import com.google.gson.Gson;
+import md.dankert.dankertcraft.utils.Logger;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -27,7 +28,7 @@ public class InstanceConfigHelper {
             String content = Files.readString(configFile.toPath());
             return JsonParser.parseString(content).getAsJsonObject();
         } catch (Exception e) {
-            System.err.println("[InstanceConfig] Ошибка при чтении конфига: " + e.getMessage());
+            Logger.error("[InstanceConfig] Ошибка при чтении конфига: " + e.getMessage());
             return createDefaultConfig();
         }
     }
@@ -38,12 +39,12 @@ public class InstanceConfigHelper {
     public static void saveInstanceConfig(String workDir, String instanceName, JsonObject config) {
         try {
             File configFile = new File(workDir, "instances" + File.separator + instanceName + File.separator + "instance.json");
-            configFile.getParentFile().mkdirs();
+            File cfgParent = configFile.getParentFile(); if (cfgParent != null) cfgParent.mkdirs();
             String json = gson.toJson(config);
             Files.writeString(configFile.toPath(), json);
-            System.out.println("[InstanceConfig] Конфиг сохранен: " + instanceName);
+            Logger.info("[InstanceConfig] Конфиг сохранен: " + instanceName);
         } catch (Exception e) {
-            System.err.println("[InstanceConfig] Ошибка при сохранении конфига: " + e.getMessage());
+            Logger.error("[InstanceConfig] Ошибка при сохранении конфига: " + e.getMessage());
         }
     }
 

@@ -10,7 +10,7 @@ public class ModManager {
     public static void downloadMod(String downloadUrl, File targetFile) throws Exception {
 
         if (!targetFile.getParentFile().exists()) {
-            targetFile.getParentFile().mkdirs();
+            File tgtParent = targetFile.getParentFile(); if (tgtParent != null) tgtParent.mkdirs();
         }
 
         URL url = new URL(downloadUrl);

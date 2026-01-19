@@ -4,8 +4,13 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 
 public class NewsPanel extends StackPane {
+
+    private String t(String key) {
+        return LanguageStrings.get(key);
+    }
 
     public NewsPanel() {
         this.setPadding(new Insets(25));
@@ -31,16 +36,16 @@ public class NewsPanel extends StackPane {
         topRow.setAlignment(Pos.CENTER_LEFT);
 
         Label welcome = new Label("YJDJDJDJDJD");
-        welcome.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #a29bfe; -fx-letter-spacing: 1.5px;");
+        welcome.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.ACCENT_COLOR + "; -fx-letter-spacing: 1.5px;");
 
         // 2. Заголовок
         Label newsTitle = new Label("ZOVVVVVVVV 2.2");
         newsTitle.setStyle("-fx-font-size: 26px; -fx-font-weight: 900; -fx-text-fill: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);");
 
         // 3. Текст описания
-        Label newsText = new Label("РОНАЛДОООО.\nSSIIIII");
+        Label newsText = new Label(t("news.test"));
         newsText.setWrapText(true);
-        newsText.setStyle("-fx-font-size: 13px; -fx-text-fill: #dfe6e9; -fx-line-spacing: 5;");
+        newsText.setStyle("-fx-font-size: 13px; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-line-spacing: 5;");
 
         content.getChildren().addAll(topRow, newsTitle, newsText);
         this.getChildren().add(content);

@@ -12,6 +12,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,11 +24,15 @@ public class IconSelector extends Stage {
     private final String customIconsDir = OSHelper.getWorkingDirectory() + "/custom_icons";
     private final TilePane tilePane = new TilePane();
     private final Consumer<String> onSelect;
+    
+    private String t(String key) {
+        return LanguageStrings.get(key);
+    }
 
     public IconSelector(Consumer<String> onSelect) {
         this.onSelect = onSelect;
         this.initModality(Modality.APPLICATION_MODAL);
-        this.setTitle("Выбор иконки сборки");
+        this.setTitle(t("window.choose.icon"));
 
         // Создаем папку для своих иконок, если её нет
         new File(customIconsDir).mkdirs();
@@ -37,7 +42,7 @@ public class IconSelector extends Stage {
         root.setStyle("-fx-background-color: #1e1e1e;");
 
         // Кнопка добавления своего файла
-        Button uploadBtn = new Button("➕ Добавить свою иконку");
+        Button uploadBtn = new Button(t("button.add.icon"));
         uploadBtn.setMaxWidth(Double.MAX_VALUE);
         uploadBtn.setPrefHeight(40);
         uploadBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 5;");
@@ -141,8 +146,8 @@ public class IconSelector extends Stage {
 
     private void uploadCustomIcon() {
         FileChooser fc = new FileChooser();
-        fc.setTitle("Выберите изображение");
-        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Картинки", "*.png", "*.jpg", "*.jpeg", "*.gif"));
+        fc.setTitle(t("dialog.select.image"));
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter(t("filter.images"), "*.png", "*.jpg", "*.jpeg", "*.gif"));
 
         File selected = fc.showOpenDialog(this);
         if (selected != null) {

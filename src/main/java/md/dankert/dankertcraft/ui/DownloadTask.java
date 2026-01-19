@@ -3,6 +3,7 @@ package md.dankert.dankertcraft.ui;
 import javafx.concurrent.Task;
 import md.dankert.dankertcraft.core.ProgressListener;
 import md.dankert.dankertcraft.core.GameInstaller;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -20,7 +21,7 @@ public class DownloadTask extends Task<Void> implements ProgressListener {
     private double currentSpeed = 0;
 
     // Состояние процесса
-    private String currentStage = "Подготовка...";
+    private String currentStage = LanguageStrings.get("label.preparation");
     private int currentFileCount = 0;
     private int totalFileCount = 0;
 
@@ -127,7 +128,7 @@ public class DownloadTask extends Task<Void> implements ProgressListener {
                 downloaded += read;
 
                 // Используем наш же метод для обновления UI
-                onProgress("Загрузка файла", (int)downloaded, (int)fileSize, downloaded);
+                onProgress(LanguageStrings.get("label.downloading.file"), (int)downloaded, (int)fileSize, downloaded);
             }
         }
     }

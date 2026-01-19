@@ -13,6 +13,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.utils.OSHelper;
 import md.dankert.dankertcraft.utils.InstanceConfigHelper;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.config.ConfigManager;
 
 import java.io.File;
@@ -30,6 +31,13 @@ public class InstanceView extends VBox {
     private JsonObject config;
     private final Runnable onRefreshNeeded; // Чтобы обновить UI после удаления/изменений
 
+    /**
+     * Получить переведённую строку
+     */
+    private String t(String key) {
+        return LanguageStrings.get(key);
+    }
+
     public InstanceView(String instanceName, Consumer<String> onLaunch, Runnable onRefreshNeeded) {
         this.instanceName = instanceName;
         this.onRefreshNeeded = onRefreshNeeded;
@@ -37,14 +45,19 @@ public class InstanceView extends VBox {
 
         this.setPadding(new Insets(30, 50, 50, 50));
         this.setSpacing(30);
-        this.setStyle("-fx-background-color: #121212;");
+        // Allow Themes to control background color
+        this.setStyle("");
 
         // --- ВЕРХНЯЯ ПАНЕЛЬ ---
         HBox topBar = new HBox();
         topBar.setAlignment(Pos.CENTER_RIGHT);
 
-        Button settingsBtn = new Button("⚙ Настройки");
-        settingsBtn.setStyle("-fx-background-color: #2c2c2c; -fx-text-fill: white; -fx-padding: 8 15; -fx-background-radius: 5; -fx-cursor: hand;");
+        Button settingsBtn = new Button(t("button.settings"));
+        settingsBtn.setStyle("-fx-background-color: " + Themes.Colors.BG_TERTIARY + "; -fx-text-fill: white; -fx-padding: 8 15; -fx-background-radius: 5; -fx-cursor: hand;");
+
+        Button exportBtn = new Button(t("button.export"));
+        exportBtn.setStyle("-fx-background-color: " + Themes.Colors.ACCENT_COLOR + "; -fx-text-fill: white; -fx-padding: 8 15; -fx-background-radius: 5; -fx-cursor: hand;");
+        exportBtn.setOnAction(e -> exportBuild());
 
         ContextMenu settingsMenu = new ContextMenu();
 
@@ -63,19 +76,21 @@ public class InstanceView extends VBox {
             }
         });
 
-        MenuItem editIcon = new MenuItem("Сменить иконку");
-        MenuItem editSettings = new MenuItem("Изменить ОЗУ / Java");
-        MenuItem changeNickname = new MenuItem("Изменить никнейм");
-        MenuItem delete = new MenuItem("Удалить сборку");
+        MenuItem editIcon = new MenuItem(t("button.change.icon"));
+        MenuItem editSettings = new MenuItem(t("button.change.settings"));
+        MenuItem changeNickname = new MenuItem(t("button.change.nickname"));
+        MenuItem exportItem = new MenuItem(t("button.export.build"));
+        MenuItem delete = new MenuItem(t("button.delete.build"));
 
         // Стили для текста и отступов пунктов
         String itemStyle = "-fx-text-fill: white; -fx-padding: 10 20; -fx-font-size: 13px;";
         editIcon.setStyle(itemStyle);
         editSettings.setStyle(itemStyle);
         changeNickname.setStyle(itemStyle);
+        exportItem.setStyle(itemStyle);
         delete.setStyle(itemStyle + "-fx-text-fill: #e74c3c;"); // Красный для удаления
 
-        settingsMenu.getItems().addAll(editIcon, editSettings, changeNickname, new SeparatorMenuItem(), delete);
+        settingsMenu.getItems().addAll(editIcon, editSettings, changeNickname, new SeparatorMenuItem(), exportItem, delete);
 
         // Обработка клика по кнопке настроек
         settingsBtn.setOnAction(e -> {
@@ -85,6 +100,7 @@ public class InstanceView extends VBox {
         // Логика действий
         editSettings.setOnAction(e -> showEditWindow());
         changeNickname.setOnAction(e -> changePlayerNickname());
+        exportItem.setOnAction(e -> exportBuild());
         delete.setOnAction(e -> deleteInstance());
         editIcon.setOnAction(e -> {
             new IconSelector(newIcon -> {
@@ -94,6 +110,8 @@ public class InstanceView extends VBox {
         });
 
         topBar.getChildren().add(settingsBtn);
+
+        // --- КНОПКА ЭКСПОРТА УДАЛЕНА, ОНА ТЕПЕРЬ В МЕНЮ НАСТРОЕК ---
 
         // --- ХЕДЕР (Иконка + Название) ---
         HBox header = new HBox(30);
@@ -106,31 +124,59 @@ public class InstanceView extends VBox {
         Label title = new Label(instanceName.toUpperCase());
         title.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        Label statusLabel = new Label("● Готов к игре");
-        statusLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-size: 14px;");
+        Label statusLabel = new Label(t("label.ready"));
+        statusLabel.setStyle("-fx-text-fill: " + Themes.Colors.SUCCESS_COLOR + "; -fx-font-size: 14px;");
         titleBox.getChildren().addAll(title, statusLabel);
         header.getChildren().addAll(iconView, titleBox);
 
         // --- ИНФО-БАР (Статистика) ---
         HBox infoBar = new HBox(40);
         infoBar.setPadding(new Insets(20));
-        infoBar.setStyle("-fx-background-color: #1a1a1a; -fx-background-radius: 10; -fx-border-color: #252525; -fx-border-radius: 10;");
+        infoBar.setStyle("-fx-background-radius: 10; -fx-border-color: #252525; -fx-border-radius: 10;");
+
+        // Рассчитываем время в часах из playtime_minutes
+        String playtimeDisplay = "0ч 0м";
+        if (config.has("playtime_minutes")) {
+            long minutes = config.get("playtime_minutes").getAsLong();
+            long hours = minutes / 60;
+            long mins = minutes % 60;
+            playtimeDisplay = hours + "ч " + mins + "м";
+        } else if (config.has("playtime")) {
+            playtimeDisplay = config.get("playtime").getAsString();
+        }
 
         infoBar.getChildren().addAll(
-                createInfoStat("ВЕРСИЯ", config.has("version") ? config.get("version").getAsString() : "1.20.1"),
-                createInfoStat("ДВИЖОК", config.has("type") ? config.get("type").getAsString() : "Vanilla"),
-                createInfoStat("ПАМЯТЬ", (config.has("ram") ? config.get("ram").getAsString() : "4") + " GB"),
-                createInfoStat("JAVA", (config.has("javaPath") && config.get("javaPath").getAsString().contains("21")) ? "Java 21" : "Java 17")
+                createInfoStat(t("stat.version"), config.has("version") ? config.get("version").getAsString() : "1.20.1"),
+                createInfoStat(t("stat.type"), config.has("type") ? config.get("type").getAsString() : "Vanilla"),
+                createInfoStat(t("stat.memory"), (config.has("ram") ? config.get("ram").getAsString() : "4") + " GB"),
+                createInfoStat("JAVA", (config.has("javaPath") && config.get("javaPath").getAsString().contains("21")) ? "Java 21" : "Java 17"),
+                createInfoStat(t("stat.launches"), config.has("launches") ? String.valueOf(config.get("launches").getAsInt()) : "0"),
+                createInfoStat(t("stat.playtime"), playtimeDisplay)
         );
+
+        // Кнопка обновления статистики
+        Button refreshBtn = new Button(t("button.refresh"));
+        refreshBtn.setStyle("-fx-background-color: " + Themes.Colors.BG_TERTIARY + "; -fx-text-fill: white; -fx-padding: 10; -fx-background-radius: 5; -fx-cursor: hand; -fx-font-size: 14px;");
+        refreshBtn.setOnAction(e -> {
+            loadConfig();
+            onRefreshNeeded.run(); // Полная перезагрузка InstanceView
+        });
+        refreshBtn.setTooltip(new Tooltip("Обновить информацию"));
+
+        HBox infoBarWithRefresh = new HBox(10);
+        infoBarWithRefresh.setAlignment(Pos.CENTER_LEFT);
+        VBox infoBarContainer = new VBox(infoBar);
+        HBox.setHgrow(infoBarContainer, Priority.ALWAYS);
+        infoBarWithRefresh.getChildren().addAll(infoBarContainer, refreshBtn);
 
         // --- КНОПКИ ДЕЙСТВИЙ ---
         HBox actions = new HBox(15);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        Button playBtn = createActionButton("ИГРАТЬ", "#27ae60", true);
+        Button playBtn = createActionButton(t("button.play"), "#27ae60", true);
         playBtn.setOnAction(e -> onLaunch.accept(instanceName));
 
-        Button folderBtn = createActionButton("ПАПКА ИГРЫ", "#34495e", false);
+        Button folderBtn = createActionButton(t("button.open.folder"), "#34495e", false);
         folderBtn.setOnAction(e -> openFolderAsync());
 
         actions.getChildren().addAll(playBtn, folderBtn);
@@ -138,40 +184,40 @@ public class InstanceView extends VBox {
         // Кнопка МОДЫ для Fabric и Forge версий
         String instanceType = config.has("type") ? config.get("type").getAsString() : "Vanilla";
         if ("Fabric".equals(instanceType) || "Forge".equals(instanceType)) {
-            Button modsBtn = createActionButton("МОДЫ", "#8e44ad", false);
+            Button modsBtn = createActionButton(t("button.mods"), "#8e44ad", false);
             modsBtn.setOnAction(e -> openModsFolder());
             actions.getChildren().add(modsBtn);
         }
 
-        this.getChildren().addAll(topBar, header, infoBar, actions);
+        this.getChildren().addAll(topBar, header, infoBarWithRefresh, actions);
     }
 
     // --- МОДАЛЬНОЕ ОКНО НАСТРОЕК ---
     private void changePlayerNickname() {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle("Изменить никнейм");
+        stage.setTitle(t("window.rename.nick"));
         stage.setWidth(400);
         stage.setHeight(200);
-        
+
         VBox layout = new VBox(20);
         layout.setPadding(new Insets(25));
-        layout.setStyle("-fx-background-color: #121212;");
+        layout.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
         layout.setAlignment(Pos.CENTER);
-        
-        Label label = new Label("Введите новый никнейм игрока:");
-        label.setStyle("-fx-font-size: 14px; -fx-text-fill: #ecf0f1;");
-        
+
+        Label label = new Label(t("label.nick.new"));
+        label.setStyle("-fx-font-size: 14px; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + ";");
+
         TextField nicknameField = new TextField(ConfigManager.getInstance().getUsername());
         nicknameField.setPrefHeight(40);
-        nicknameField.setStyle("-fx-font-size: 13px; -fx-padding: 10px; -fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-border-color: #2ecc71; -fx-border-radius: 5;");
-        
+        nicknameField.setStyle("-fx-font-size: 13px; -fx-padding: 10px; -fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: white; -fx-border-color: " + Themes.Colors.SUCCESS_COLOR + "; -fx-border-radius: 5;");
+
         HBox btnBox = new HBox(10);
         btnBox.setAlignment(Pos.CENTER);
-        
-        Button saveBtn = new Button("Сохранить");
+
+        Button saveBtn = new Button(t("button.save"));
         saveBtn.setPrefWidth(100);
-        saveBtn.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5;");
+        saveBtn.setStyle("-fx-background-color: " + Themes.Colors.SUCCESS_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5;");
         saveBtn.setOnAction(e -> {
             String newNickname = nicknameField.getText().trim();
             if (!newNickname.isEmpty()) {
@@ -179,56 +225,55 @@ public class InstanceView extends VBox {
                 stage.close();
             }
         });
-        
-        Button cancelBtn = new Button("Отмена");
+
+        Button cancelBtn = new Button(t("button.cancel"));
         cancelBtn.setPrefWidth(100);
-        cancelBtn.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5;");
+        cancelBtn.setStyle("-fx-background-color: " + Themes.Colors.BG_TERTIARY + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5;");
         cancelBtn.setOnAction(e -> stage.close());
-        
+
         btnBox.getChildren().addAll(saveBtn, cancelBtn);
         layout.getChildren().addAll(label, nicknameField, btnBox);
-        
+
         Scene scene = new Scene(layout);
         stage.setScene(scene);
         stage.showAndWait();
     }
-    
+
     private void showEditWindow() {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle("Настройки: " + instanceName);
+        stage.setTitle(t("window.settings") + instanceName);
 
         VBox root = new VBox(20);
         root.setPadding(new Insets(30));
-        // Глубокий черный фон и тонкая рамка
-        root.setStyle("-fx-background-color: #0f0f0f; -fx-border-color: #2c2c2c; -fx-border-width: 1;");
+        root.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-width: 1;");
         root.setAlignment(Pos.CENTER_LEFT);
 
-        Label head = new Label("ПАРАМЕТРЫ ЗАПУСКА");
+        Label head = new Label(t("label.launch.params"));
         head.setStyle("-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;");
 
         // Поле ОЗУ
-        Label ramLabel = new Label("Выделенная память (ГБ):");
-        ramLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 12px;");
+        Label ramLabel = new Label(t("label.memory"));
+        ramLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 12px;");
 
         TextField ramField = new TextField(config.get("ram").getAsString());
-        ramField.setPromptText("Например: 4");
-        ramField.setStyle("-fx-background-color: #1a1a1a; -fx-text-fill: white; -fx-border-color: #333; " +
+        ramField.setPromptText(t("label.ram.example"));
+        ramField.setStyle("-fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: white; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; " +
                 "-fx-background-radius: 5; -fx-border-radius: 5; -fx-padding: 10;");
 
         // Выбор Java
-        Label javaLabel = new Label("Версия Java:");
-        javaLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 12px;");
+        Label javaLabel = new Label(t("label.java"));
+        javaLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 12px;");
 
         ComboBox<String> javaBox = new ComboBox<>();
         javaBox.getItems().addAll("Java 8", "Java 16", "Java 17", "Java 21");
         // Пытаемся поставить то, что уже сохранено в конфиге
         javaBox.setValue(config.has("javaPath") ? config.get("javaPath").getAsString() : "Java 17");
         javaBox.setMaxWidth(Double.MAX_VALUE);
-        javaBox.setStyle("-fx-background-color: #1a1a1a; -fx-border-color: #333; -fx-padding: 5;");
+        javaBox.setStyle("-fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-padding: 5;");
 
         // Кнопка сохранения
-        Button saveBtn = new Button("СОХРАНИТЬ ИЗМЕНЕНИЯ");
+        Button saveBtn = new Button(t("button.save.changes"));
         saveBtn.setMaxWidth(Double.MAX_VALUE);
         saveBtn.setCursor(javafx.scene.Cursor.HAND);
         saveBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; " +
@@ -302,9 +347,9 @@ public class InstanceView extends VBox {
     private VBox createInfoStat(String label, String value) {
         VBox box = new VBox(5);
         Label lbl = new Label(label);
-        lbl.setStyle("-fx-text-fill: #555; -fx-font-size: 10px; -fx-font-weight: bold;");
+        lbl.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 10px; -fx-font-weight: bold;");
         Label val = new Label(value);
-        val.setStyle("-fx-text-fill: #ccc; -fx-font-size: 14px;");
+        val.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 14px;");
         box.getChildren().addAll(lbl, val);
         return box;
     }
@@ -333,5 +378,33 @@ public class InstanceView extends VBox {
             iv.setImage(img);
         } catch (Exception e) { e.printStackTrace(); }
         return iv;
+    }
+
+    private void exportBuild() {
+        File exportFile = md.dankert.dankertcraft.core.BuildExporter.exportBuildAsZip(workDir, instanceName);
+        if (exportFile != null) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(t("notification.export.success"));
+            alert.setHeaderText(t("notification.export.success"));
+            alert.setContentText(t("notification.export.content") + exportFile.getPath() +
+                    "\n\n" + t("notification.export.includes") + "\n" +
+                    t("notification.export.config") + "\n" +
+                    t("notification.export.saves") + "\n" +
+                    t("notification.export.mods") + "\n" +
+                    t("notification.export.mods.config") + "\n" +
+                    t("notification.export.options") + "\n\n" +
+                    t("notification.export.share") + "\n" +
+                    t("notification.export.import"));
+            alert.showAndWait();
+        } else {
+            showError(t("error.export"));
+        }
+    }
+
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(t("error"));
+        alert.setHeaderText(message);
+        alert.showAndWait();
     }
 }

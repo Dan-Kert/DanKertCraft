@@ -1,21 +1,22 @@
 package md.dankert.dankertcraft.ui;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.core.FabricManager;
 import md.dankert.dankertcraft.core.GameInstaller;
 import md.dankert.dankertcraft.core.VanillaManager;
+import md.dankert.dankertcraft.utils.Logger;
 import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -30,52 +31,105 @@ public class InstallWindow {
     private final LauncherUI launcherUI;
 
     private List<String> allVersions = new ArrayList<>();
-    private ListView<String> versionList = new ListView<>();
-    private ComboBox<String> javaVerBox = new ComboBox<>();
+    private final ListView<String> versionList = new ListView<>();
+    private final ComboBox<String> javaVerBox = new ComboBox<>();
     private String currentCategory = "Vanilla";
 
     private String selectedIconFile = "standart.png";
-    private ImageView iconPreview = new ImageView();
+    private final ImageView iconPreview = new ImageView();
+
+    private final TextField nameField = new TextField("New Build");
+    private final TextField nicknameField = new TextField();
+    private final TextField ramField = new TextField("4");
+    private final Button installBtn = new Button();
+    private final Label errorLabel = new Label("");
+    
+    private String t(String key) {
+        return LanguageStrings.get(key);
+    }
 
     public InstallWindow(LauncherUI launcherUI) {
         this.launcherUI = launcherUI;
+        this.nicknameField.setText(md.dankert.dankertcraft.config.ConfigManager.getInstance().getUsername());
     }
 
     public void show() {
-        showInstallWindow();
-    }
-    
-    private void showInstallWindow() {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle("Установка новой игры");
+        stage.setTitle(LanguageStrings.get("install"));
 
-        VBox layout = new VBox(15);
-        layout.setPadding(new Insets(25));
-        layout.setStyle("-fx-background-color: #121212;");
-        layout.setAlignment(Pos.TOP_CENTER);
+        stage.setMinWidth(620);
+        stage.setMinHeight(650);
+        stage.setResizable(false);
+
+        VBox root = new VBox(15);
+        root.setPadding(new Insets(25));
+        root.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
 
         // --- ШАПКА ---
-        Label headerLabel = new Label("Менеджер установок");
-        headerLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: white;");
+        HBox header = new HBox();
+        header.setAlignment(Pos.CENTER_LEFT);
 
-        // --- ИКОНКА ---
+        Label title = new Label();
+        title.textProperty().bind(LanguageStrings.textProperty("label.launcher"));
+        title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.ACCENT_COLOR + ";");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button importBtn = new Button();
+        // Убрал setGraphic, чтобы смайлик не дублировался с тем, что в LanguageStrings
+        importBtn.textProperty().bind(LanguageStrings.textProperty("button.import"));
+        importBtn.setAlignment(Pos.CENTER);
+        importBtn.setStyle("-fx-background-color: " + Themes.Colors.BG_TERTIARY + "; -fx-text-fill: white; -fx-padding: 6 15; -fx-cursor: hand; -fx-background-radius: 6;");
+        importBtn.setOnAction(e -> importBuildFile(stage));
+
+        header.getChildren().addAll(title, spacer, importBtn);
+
+        // --- ПАНЕЛЬ НАСТРОЕК ---
+        HBox topSection = new HBox(30);
+        topSection.setAlignment(Pos.CENTER_LEFT);
+        topSection.setStyle("-fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-padding: 20; -fx-background-radius: 12; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 12;");
+
+        VBox iconBlock = new VBox(12);
+        iconBlock.setAlignment(Pos.CENTER);
         iconPreview.setFitWidth(64);
         iconPreview.setFitHeight(64);
         updateIconPreview(selectedIconFile);
 
-        Button changeIconBtn = new Button("Сменить иконку");
-        changeIconBtn.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5;");
+        Button changeIconBtn = new Button();
+        changeIconBtn.textProperty().bind(LanguageStrings.textProperty("button.select.icon"));
+        changeIconBtn.setGraphic(new Label("🖼"));
+        changeIconBtn.setStyle("-fx-background-color: " + Themes.Colors.BG_TERTIARY + "; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 5 12; -fx-font-size: 12px; -fx-background-radius: 5;");
         changeIconBtn.setOnAction(e -> new IconSelector(newIcon -> {
             selectedIconFile = newIcon;
             updateIconPreview(newIcon);
         }).show());
 
-        VBox iconBox = new VBox(10, new Label("Иконка сборки:"), iconPreview, changeIconBtn);
-        iconBox.setAlignment(Pos.CENTER);
+        iconBlock.getChildren().addAll(iconPreview, changeIconBtn);
+
+        GridPane settingsGrid = new GridPane();
+        settingsGrid.setHgap(25);
+        settingsGrid.setVgap(8);
+        HBox.setHgrow(settingsGrid, Priority.ALWAYS);
+
+        javaVerBox.getItems().setAll("Auto", "Java 8", "Java 16", "Java 17", "Java 21");
+        javaVerBox.setValue("Auto");
+        javaVerBox.setMaxWidth(Double.MAX_VALUE);
+
+        // 1. Убираем зеленый цвет фона при выборе в ComboBox (ставим нейтральный серый)
+        javaVerBox.setStyle("-fx-selection-bar: " + Themes.Colors.BORDER_COLOR + "; " +
+                "-fx-selection-bar-non-focused: " + Themes.Colors.BG_TERTIARY + ";");
+
+        settingsGrid.add(new Label(t("label.build.name")), 0, 0); settingsGrid.add(nameField, 0, 1);
+        settingsGrid.add(new Label(t("label.nickname")), 1, 0); settingsGrid.add(nicknameField, 1, 1);
+        settingsGrid.add(new Label(t("label.ram")), 0, 2);  settingsGrid.add(ramField, 0, 3);
+        settingsGrid.add(new Label(t("label.java.version")), 1, 2); settingsGrid.add(javaVerBox, 1, 3);
+
+        topSection.getChildren().addAll(iconBlock, settingsGrid);
 
         // --- КАТЕГОРИИ ---
-        HBox categoryBox = new HBox(10);
+        HBox categoryBox = new HBox(8);
         categoryBox.setAlignment(Pos.CENTER);
         ToggleGroup group = new ToggleGroup();
         categoryBox.getChildren().addAll(
@@ -84,209 +138,184 @@ public class InstallWindow {
                 createCategoryBtn("Alpha/Beta", group, false)
         );
 
-        // --- ПОЛЯ ВВОДА ---
-        TextField nameField = new TextField("Моя Сборка");
-        nameField.setPrefHeight(40);
-        Label errorLabel = new Label("");
-        errorLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 11px;");
-
+        // --- СПИСОК ВЕРСИЙ ---
+        VBox versionBox = new VBox(10);
         TextField searchField = new TextField();
-        searchField.setPromptText("🔍 Поиск версии...");
-        versionList.setPrefHeight(200);
-        VBox.setVgrow(versionList, Priority.ALWAYS);
+        searchField.promptTextProperty().bind(LanguageStrings.textProperty("label.searching"));
 
-        // --- НАСТРОЙКИ ---
-        TextField ramField = new TextField("4");
-        ramField.setPrefWidth(60);
-        javaVerBox.getItems().addAll("Авто", "Java 8", "Java 16", "Java 17", "Java 21");
-        javaVerBox.setValue("Авто");
+        versionList.setPrefHeight(180);
 
-        HBox settingsBox = new HBox(15,
-                new VBox(5, new Label("ОЗУ (ГБ):"), ramField),
-                new VBox(5, new Label("Версия Java:"), javaVerBox)
+        // 3. Делаем так, чтобы выбранная версия ВСЕГДА была зеленой (даже при наведении)
+        versionList.setStyle(
+                ".list-cell:filled:selected { -fx-background-color: " + Themes.Colors.BUTTON_PRIMARY + " !important; -fx-text-fill: white; }" +
+                        ".list-cell:filled:selected:hover { -fx-background-color: " + Themes.Colors.BUTTON_PRIMARY + " !important; }"
         );
 
-        Button installBtn = new Button("УСТАНОВИТЬ");
-        installBtn.setMaxWidth(Double.MAX_VALUE);
+        versionBox.getChildren().addAll(searchField, versionList);
+
+        // --- ФУТЕР ---
+        VBox footerContent = new VBox(10);
+        footerContent.setAlignment(Pos.CENTER);
+
+        errorLabel.setStyle("-fx-text-fill: " + Themes.Colors.ERROR_COLOR + "; -fx-font-size: 12px;");
+
+        installBtn.textProperty().bind(LanguageStrings.textProperty("button.install"));
+        installBtn.setGraphic(new Label("🚀"));
+        installBtn.setMinWidth(280);
         installBtn.setPrefHeight(45);
-        installBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;");
+        installBtn.setAlignment(Pos.CENTER);
+        installBtn.setStyle("-fx-background-color: " + Themes.Colors.BUTTON_PRIMARY + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10; -fx-cursor: hand; -fx-font-size: 15px;");
 
-        layout.getChildren().addAll(headerLabel, iconBox, categoryBox, nameField, errorLabel, searchField, versionList, settingsBox, installBtn);
+        footerContent.getChildren().addAll(errorLabel, installBtn);
 
-        // Валидация
-        Runnable checkName = () -> {
+        root.getChildren().addAll(header, topSection, categoryBox, versionBox, footerContent);
+
+        // --- ЛОГИКА ---
+        Runnable validate = () -> {
             String name = nameField.getText().trim();
-            String folderName = currentCategory.equals("Fabric") ? name + "-fabric" : name;
-            File instanceDir = new File(workDir, "instances/" + folderName);
-            boolean exists = instanceDir.exists();
-            installBtn.setDisable(name.isEmpty() || exists);
-            errorLabel.setText(name.isEmpty() ? "Имя не может быть пустым" : (exists ? "Сборка уже существует!" : ""));
+            String nick = nicknameField.getText().trim();
+            String ram = ramField.getText().trim();
+            String selectedVer = versionList.getSelectionModel().getSelectedItem();
+
+            String folder = currentCategory.equals("Fabric") ? name + "-fabric" : name;
+            File instanceDir = new File(workDir, "instances/" + folder);
+
+            boolean hasError = false;
+            if (name.isEmpty() || nick.isEmpty() || ram.isEmpty()) {
+                errorLabel.setText(t("error.fill.all.fields"));
+                hasError = true;
+            } else if (selectedVer == null) {
+                errorLabel.setText(t("error.select.version"));
+                hasError = true;
+            } else if (instanceDir.exists()) {
+                errorLabel.setText("Сборка уже существует!");
+                hasError = true;
+            } else {
+                errorLabel.setText("");
+            }
+            installBtn.setDisable(hasError);
         };
 
-        nameField.textProperty().addListener((obs, o, n) -> checkName.run());
-        searchField.textProperty().addListener((obs, o, n) -> updateVersionList(n));
-        group.selectedToggleProperty().addListener((obs, o, n) -> {
-            if (n != null) {
-                currentCategory = ((ToggleButton) n).getText();
+        nameField.textProperty().addListener((o, old, n) -> validate.run());
+        nicknameField.textProperty().addListener((o, old, n) -> validate.run());
+        ramField.textProperty().addListener((o, old, n) -> validate.run());
+        versionList.getSelectionModel().selectedItemProperty().addListener((o, old, n) -> validate.run());
+        searchField.textProperty().addListener((o, old, n) -> updateVersionList(n));
+
+        group.selectedToggleProperty().addListener((o, oldVal, newVal) -> {
+            if (newVal == null) {
+                oldVal.setSelected(true);
+            } else {
+                currentCategory = ((ToggleButton) newVal).getText();
+                versionList.getSelectionModel().clearSelection(); // 3. Сброс выбранной версии при смене категории
                 updateVersionList(searchField.getText());
-                checkName.run();
+                validate.run();
             }
         });
 
         new Thread(() -> {
             try {
                 allVersions = new GameInstaller(workDir).getAllVersionIds();
-                Platform.runLater(() -> updateVersionList(""));
-            } catch (Exception e) {
-                // Если не удалось загрузить версии онлайн, используем кэш если есть
-                System.err.println("[InstallWindow] Не удалось загрузить версии: " + e.getMessage());
                 Platform.runLater(() -> {
-                    // Показываем пустой список с сообщением
-                    versionList.setPlaceholder(new Label("Ошибка подключения. Пожалуйста, проверьте интернет."));
+                    updateVersionList("");
+                    validate.run();
                 });
+            } catch (Exception e) {
+                Platform.runLater(() -> versionList.setPlaceholder(new Label(t("error.connection"))));
             }
         }).start();
 
-        // --- ЛОГИКА УСТАНОВКИ ---
         installBtn.setOnAction(e -> {
-            String selectedVer = versionList.getSelectionModel().getSelectedItem();
-            String profileName = nameField.getText().trim();
-            String ram = ramField.getText().trim();
-            String selectedJava = javaVerBox.getValue();
-
-            if (selectedVer == null) return;
-
-            try {
-                String folderName = currentCategory.equals("Fabric") ? profileName + "-fabric" : profileName;
-                File instanceDir = new File(workDir, "instances/" + folderName);
-                instanceDir.mkdirs();
-
-                String initialJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"auto\",\"ram\":\"%s\",\"icon\":\"%s\"}",
-                        selectedVer, currentCategory, ram, selectedIconFile);
-                Files.writeString(new File(instanceDir, "instance.json").toPath(), initialJson);
-                launcherUI.refreshGamesGrid();
-            } catch (Exception ex) { ex.printStackTrace(); }
-
-            // Создаем таск (теперь он реализует ProgressListener)
-            DownloadTask installTask = new DownloadTask("dummy_url", new File(workDir, "temp")) {
-                @Override
-                protected Void call() throws Exception {
-                    try {
-                        VanillaManager vm = new VanillaManager(workDir);
-                        md.dankert.dankertcraft.core.GameInstaller gameInstaller = new md.dankert.dankertcraft.core.GameInstaller(workDir);
-                        FabricManager fm = new FabricManager(workDir);
-
-                        // Передаем installer в DownloadTask для поддержки отмены
-                        setInstaller(gameInstaller);
-
-                        // 1. Подготовка Vanilla (передаем 'this' как ProgressListener)
-                        vm.prepare(selectedVer, this);
-
-                        // Проверяем не отменена ли задача
-                        if (isCancelled()) return null;
-
-                        // 2. Установка Fabric если нужно
-                        if (currentCategory.equals("Fabric")) {
-                            onProgress("Установка Fabric", 50, 100, 0);
-                            fm.prepare(selectedVer); // Если обновишь fm.prepare, тоже добавь ,this
-                        }
-
-                        // Проверяем не отменена ли задача
-                        if (isCancelled()) return null;
-
-                        // 3. Настройка Java
-                        onProgress("Настройка Java", 80, 100, 0);
-                        String javaPath;
-                        if (selectedJava.startsWith("Авто")) {
-                            javaPath = vm.setupJavaRuntime(selectedVer, this);
-                        } else {
-                            String proxy = selectedVer;
-                            if (selectedJava.contains("8")) proxy = "1.8.9";
-                            else if (selectedJava.contains("16")) proxy = "1.17";
-                            else if (selectedJava.contains("17")) proxy = "1.18.2";
-                            else if (selectedJava.contains("21")) proxy = "1.20.6";
-                            javaPath = vm.setupJavaRuntime(proxy, this);
-                        }
-
-                        // Финальное обновление JSON
-                        String folderName = currentCategory.equals("Fabric") ? profileName + "-fabric" : profileName;
-                        File configFile = new File(workDir, "instances/" + folderName + "/instance.json");
-                        String finalJson = String.format(
-                                "{\n  \"version\": \"%s\",\n  \"type\": \"%s\",\n  \"javaPath\": \"%s\",\n  \"ram\": \"%s\",\n  \"icon\": \"%s\"\n}",
-                                selectedVer, currentCategory, javaPath.replace("\\", "/"), ram, selectedIconFile
-                        );
-                        Files.writeString(configFile.toPath(), finalJson);
-
-                        onProgress("Готово", 100, 100, 0);
-                    } catch (Exception ex) {
-                        updateMessage("Ошибка установки| | ");
-                        throw ex;
-                    }
-                    return null;
-                }
-            };
-
-            launcherUI.getDownloadStatusBar().start("Установка " + profileName, installTask);
-            Thread t = new Thread(installTask);
-            t.setDaemon(true);
-            t.start();
-            stage.close();
+            String ver = versionList.getSelectionModel().getSelectedItem();
+            if (ver != null) {
+                startInstallation(ver, nameField.getText().trim(), nicknameField.getText().trim(), ramField.getText().trim(), javaVerBox.getValue());
+                stage.close();
+            }
         });
 
-        Scene scene = new Scene(layout, 460, 780);
-        scene.getStylesheets().add(getDarkTheme());
+        Scene scene = new Scene(root);
+        Themes.applyTheme(scene);
         stage.setScene(scene);
         stage.show();
-    }
-
-    // Вспомогательные методы остаются прежними...
-    private void updateIconPreview(String fileName) { iconPreview.setImage(loadIconImage(fileName)); }
-
-    private Image loadIconImage(String iconName) {
-        try {
-            if (iconName != null && iconName.startsWith("custom:")) {
-                File file = new File(workDir + "/custom_icons/" + iconName.replace("custom:", ""));
-                if (file.exists()) return new Image(new FileInputStream(file));
-            }
-            InputStream is = getClass().getResourceAsStream("/icons/blocks/" + iconName);
-            if (is != null) return new Image(is);
-        } catch (Exception e) {}
-        return new Image(getClass().getResourceAsStream("/icons/blocks/standart.png"));
-    }
-
-    private void updateVersionList(String query) {
-        if (allVersions == null) return;
-        FabricManager fm = new FabricManager(workDir);
-        List<String> filtered = allVersions.stream()
-                .filter(v -> {
-                    String name = v.toLowerCase();
-                    boolean matches = name.contains(query.toLowerCase());
-                    boolean isRel = v.matches("\\d+\\.\\d+(\\.\\d+)?");
-                    switch (currentCategory) {
-                        case "Vanilla": return matches && isRel;
-                        case "Fabric": return matches && isRel && fm.isSupported(v);
-                        case "Alpha/Beta": return matches && (name.startsWith("a") || name.startsWith("b") || name.contains("infdev"));
-                        default: return matches;
-                    }
-                }).collect(Collectors.toList());
-        Platform.runLater(() -> versionList.getItems().setAll(filtered));
     }
 
     private ToggleButton createCategoryBtn(String text, ToggleGroup group, boolean sel) {
         ToggleButton btn = new ToggleButton(text);
         btn.setToggleGroup(group);
         btn.setSelected(sel);
+        btn.setMinWidth(120);
+        btn.setAlignment(Pos.CENTER);
+        btn.setStyle("-fx-cursor: hand; -fx-padding: 8 15; -fx-font-weight: bold;");
         return btn;
     }
 
-    private String getDarkTheme() {
-        return "data:text/css," +
-                ".label { -fx-text-fill: #888; }" +
-                ".text-field, .combo-box { -fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-border-color: #333; -fx-background-radius: 5; }" +
-                ".list-view { -fx-background-color: #1e1e1e; -fx-border-color: #333; }" +
-                ".list-cell { -fx-background-color: transparent; -fx-text-fill: #ccc; }" +
-                ".list-cell:selected { -fx-background-color: #27ae60; -fx-text-fill: white; }" +
-                ".toggle-button { -fx-background-color: #1e1e1e; -fx-text-fill: #888; -fx-cursor: hand; }" +
-                ".toggle-button:selected { -fx-background-color: #27ae60; -fx-text-fill: white; }";
+    private void updateVersionList(String query) {
+        if (allVersions == null) return;
+        FabricManager fm = new FabricManager(workDir);
+        List<String> filtered = allVersions.stream().filter(v -> {
+            boolean matchesQuery = v.toLowerCase().contains(query.toLowerCase());
+            boolean isRelease = v.matches("\\d+\\.\\d+(\\.\\d+)?");
+
+            return switch (currentCategory) {
+                case "Vanilla" -> matchesQuery && isRelease;
+                case "Fabric" -> matchesQuery && isRelease && fm.isSupported(v);
+                case "Alpha/Beta" -> matchesQuery && (v.startsWith("a") || v.startsWith("b") || v.contains("infdev"));
+                default -> matchesQuery;
+            };
+        }).collect(Collectors.toList());
+        Platform.runLater(() -> versionList.getItems().setAll(filtered));
+    }
+
+    private void startInstallation(String ver, String name, String nick, String ram, String java) {
+        try {
+            String folderName = currentCategory.equals("Fabric") ? name + "-fabric" : name;
+            File instanceDir = new File(workDir, "instances/" + folderName);
+            instanceDir.mkdirs();
+
+            String initialJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"auto\",\"ram\":\"%s\",\"icon\":\"%s\",\"username\":\"%s\"}",
+                    ver, currentCategory, ram, selectedIconFile, nick);
+            Files.writeString(new File(instanceDir, "instance.json").toPath(), initialJson);
+
+            md.dankert.dankertcraft.config.ConfigManager.getInstance().setUsername(nick);
+            launcherUI.refreshGamesGrid();
+
+            DownloadTask task = new DownloadTask("dummy", new File(workDir, "temp")) {
+                @Override protected Void call() throws Exception {
+                    VanillaManager vm = new VanillaManager(workDir);
+                    vm.prepare(ver, this);
+                    if (currentCategory.equals("Fabric")) new FabricManager(workDir).prepare(ver);
+                    String javaPath = vm.setupJavaRuntime(ver, this);
+
+                    String finalJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"%s\",\"ram\":\"%s\",\"icon\":\"%s\",\"downloaded\":true}",
+                            ver, currentCategory, javaPath.replace("\\", "/"), ram, selectedIconFile);
+                    Files.writeString(new File(instanceDir, "instance.json").toPath(), finalJson);
+                    return null;
+                }
+            };
+            launcherUI.getDownloadStatusBar().start(LanguageStrings.get("install") + ": " + name, task);
+            new Thread(task).start();
+        } catch (Exception ex) { Logger.error(ex.getMessage()); }
+    }
+
+    private void updateIconPreview(String fileName) {
+        try {
+            if (fileName.startsWith("custom:")) {
+                iconPreview.setImage(new Image(new FileInputStream(new File(workDir + "/custom_icons/" + fileName.replace("custom:", "")))));
+            } else {
+                InputStream is = getClass().getResourceAsStream("/icons/blocks/" + fileName);
+                iconPreview.setImage(new Image(is != null ? is : getClass().getResourceAsStream("/icons/blocks/standart.png")));
+            }
+        } catch (Exception e) {
+            iconPreview.setImage(new Image(getClass().getResourceAsStream("/icons/blocks/standart.png")));
+        }
+    }
+
+    private void importBuildFile(Stage parent) {
+        javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+        fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("DanKertCraft Builds", "*.dankertcraft"));
+        File f = fc.showOpenDialog(parent);
+        if (f != null && md.dankert.dankertcraft.core.BuildExporterV2.importBuildFromZip(workDir, f)) {
+            launcherUI.refreshGamesGrid();
+        }
     }
 }

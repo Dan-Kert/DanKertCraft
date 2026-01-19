@@ -1,6 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import javafx.application.Platform;
+import md.dankert.dankertcraft.utils.Logger;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -12,11 +13,16 @@ import javafx.stage.Stage;
 import javafx.animation.TranslateTransition;
 import javafx.util.Duration;
 import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.File;
 
 public class DownloadStatusBar extends HBox {
     private final ProgressBar progressBar = new ProgressBar();
     private final Label titleLabel = new Label();
+    
+    private String t(String key) {
+        return LanguageStrings.get(key);
+    }
     private final Label stageLabel = new Label();      // "Загрузка библиотек"
     private final Label filesLabel = new Label();      // "150 / 450"
     private final Label speedLabel = new Label();      // "12.4 MB/s"
@@ -72,7 +78,7 @@ public class DownloadStatusBar extends HBox {
         logBtn.setOnAction(e -> {
             if (logStage == null) {
                 logStage = new Stage();
-                logStage.setTitle("📋 Статус загрузки и логирование");
+                logStage.setTitle(t("window.download.logs"));
                 logStage.setWidth(800);
                 logStage.setHeight(500);
                 
@@ -126,7 +132,7 @@ public class DownloadStatusBar extends HBox {
             this.setVisible(true);
             this.setManaged(true);
             titleLabel.setText(title);
-            stageLabel.setText("Инициализация...");
+            stageLabel.setText(t("label.stage.initializing"));
         });
 
         progressBar.progressProperty().bind(task.progressProperty());
@@ -165,7 +171,7 @@ public class DownloadStatusBar extends HBox {
             hideBar();
         });
         task.setOnSucceeded(e -> {
-            stageLabel.setText("✅ Завершено");
+            stageLabel.setText(t("label.stage.completed"));
             speedLabel.setText("0.00 MB/s");
             percentLabel.setText("100%");
             cancelBtn.setDisable(true);
@@ -182,10 +188,10 @@ public class DownloadStatusBar extends HBox {
         });
 
         task.setOnFailed(e -> {
-            stageLabel.setText("❌ Ошибка");
+            stageLabel.setText(t("label.stage.error"));
             stageLabel.setStyle("-fx-text-fill: #e74c3c;");
             cancelBtn.setDisable(true);
-            logArea.appendText("КРИТИЧЕСКАЯ ОШИБКА: " + task.getException().getMessage() + "\n");
+            logArea.appendText(t("label.critical.error") + " " + task.getException().getMessage() + "\n");
         });
     }
 
@@ -222,17 +228,20 @@ public class DownloadStatusBar extends HBox {
                 for (File f : tempDir.listFiles((dir, name) -> name.startsWith("java_temp") && name.endsWith(".tar.gz"))) {
                     f.delete();
                 }
-                System.out.println("[StatusBar] Временные файлы удалены");
+                Logger.info("[StatusBar] Временные файлы удалены");
             } catch (Exception e) {
-                System.err.println("[StatusBar] Ошибка при удалении временных файлов: " + e.getMessage());
+                Logger.error("[StatusBar] Ошибка при удалении временных файлов: " + e.getMessage());
             }
         }).start();
     }
 
     private void deleteDirectory(File dir) {
         if (dir.isDirectory()) {
-            for (File f : dir.listFiles()) {
-                deleteDirectory(f);
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    deleteDirectory(f);
+                }
             }
         }
         dir.delete();

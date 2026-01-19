@@ -1,6 +1,7 @@
 package md.dankert.dankertcraft.mods;
 
 import com.google.gson.Gson;
+import md.dankert.dankertcraft.utils.Logger;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import md.dankert.dankertcraft.utils.Downloader;
@@ -51,7 +52,7 @@ public class ModrinthAPI {
                 "&facets=" + encode(facetsJson) +
                 "&limit=20";
 
-        System.out.println("[ModrinthAPI] Запрос: " + fullUrl);
+        Logger.info("[ModrinthAPI] Запрос: " + fullUrl);
 
         try {
             String response = Downloader.downloadToString(fullUrl);
@@ -63,7 +64,7 @@ public class ModrinthAPI {
                 if (mod != null) results.add(mod);
             }
         } catch (Exception e) {
-            System.err.println("[ModrinthAPI] Ошибка: " + e.getMessage());
+            Logger.error("[ModrinthAPI] Ошибка: " + e.getMessage());
             throw e;
         }
 
@@ -91,7 +92,7 @@ public class ModrinthAPI {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[ModrinthAPI] Ошибка URL: " + e.getMessage());
+            Logger.error("[ModrinthAPI] Ошибка URL: " + e.getMessage());
         }
         return null;
     }

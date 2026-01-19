@@ -1,6 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import com.google.gson.JsonObject;
+import md.dankert.dankertcraft.utils.Logger;
 import com.google.gson.JsonParser;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -14,6 +15,7 @@ import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.core.GameLauncher;
 import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.config.ConfigManager;
 import md.dankert.dankertcraft.cache.CacheManager;
 
@@ -49,12 +51,12 @@ public class LauncherUI extends Application {
                 this::showHomeContent,
                 () -> new InstallWindow(this).show(),
                 this::showInstancePage,
-                () -> new SettingsWindow().show()
+                () -> new SettingsWindow(this).show()
         );
         sidebar.setMinWidth(80);
         sidebar.setPrefWidth(80);
 
-        contentArea.setStyle("-fx-background-color: #121212;");
+        contentArea.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
         HBox.setHgrow(contentArea, Priority.ALWAYS);
 
         showHomeContent();
@@ -81,10 +83,10 @@ public class LauncherUI extends Application {
         scene.getStylesheets().add(css);
 
         try {
-            String mainCss = getClass().getResource(UIStyles.getMainStylesheet()).toExternalForm();
+            String mainCss = getClass().getResource("/styles/main.css").toExternalForm();
             scene.getStylesheets().add(mainCss);
         } catch (Exception e) {
-            System.err.println("CSS файл не найден: " + e.getMessage());
+            Logger.error("CSS файл не найден: " + e.getMessage());
         }
 
         // 5. Настройка Stage (Окна)
@@ -103,7 +105,7 @@ public class LauncherUI extends Application {
                 if (fallback != null) primaryStage.getIcons().add(new Image(fallback));
             }
         } catch (Exception e) {
-            System.out.println("Ошибка загрузки иконки: " + e.getMessage());
+            Logger.info("Ошибка загрузки иконки: " + e.getMessage());
         }
 
         primaryStage.setScene(scene);
@@ -125,6 +127,10 @@ public class LauncherUI extends Application {
             protected Void call() throws Exception {
                 try {
                     updateMessage("Подготовка к запуску...| | ");
+                    
+                    // ВАЖНО: Обновляем username перед запуском (может быть изменен в InstanceView)
+                    currentUsername = ConfigManager.getInstance().getUsername();
+                    
                     GameLauncher launcher = new GameLauncher(workDir);
 
                     // ИСПРАВЛЕНИЕ: Передаем 'this' как ProgressListener
@@ -169,14 +175,12 @@ public class LauncherUI extends Application {
         VBox homeLayout = new VBox(25);
         homeLayout.setPadding(new Insets(30));
 
+        // Увеличиваем NewsPanel
         NewsPanel newsPanel = new NewsPanel();
-        Label recentTitle = new Label("НЕДАВНО ЗАПУЩЕННЫЕ");
-        recentTitle.setStyle("-fx-font-weight: bold; -fx-opacity: 0.4; -fx-font-size: 11px;");
+        VBox.setVgrow(newsPanel, Priority.ALWAYS);
 
-        recentGamesBox.getChildren().clear();
-        updateRecentList();
-
-        Label allTitle = new Label("ВСЕ СБОРКИ");
+        Label allTitle = new Label();
+        allTitle.textProperty().bind(LanguageStrings.textProperty("menu.all.title"));
         allTitle.setStyle("-fx-font-weight: bold; -fx-opacity: 0.4; -fx-font-size: 11px;");
 
         allGamesGrid.setHgap(20);
@@ -186,7 +190,7 @@ public class LauncherUI extends Application {
         scroll.setFitToWidth(true);
         scroll.setStyle("-fx-background-color: transparent;");
 
-        homeLayout.getChildren().addAll(newsPanel, recentTitle, recentGamesBox, new Separator(), allTitle, allGamesGrid);
+        homeLayout.getChildren().addAll(newsPanel, allTitle, allGamesGrid);
         contentArea.getChildren().add(scroll);
     }
 
@@ -200,7 +204,7 @@ public class LauncherUI extends Application {
                 Arrays.sort(folders, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
                 for (File f : folders) allGamesGrid.getChildren().add(createGameCard(f.getName()));
             }
-            updateRecentList();
+            // updateRecentList(); // Удалено: показываем только все сборки
         });
     }
 

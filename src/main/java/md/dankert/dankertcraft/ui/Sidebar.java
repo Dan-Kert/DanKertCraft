@@ -1,6 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import com.google.gson.JsonObject;
+import md.dankert.dankertcraft.utils.Logger;
 import com.google.gson.JsonParser;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -15,6 +16,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,6 +31,10 @@ public class Sidebar extends VBox {
     private final VBox instancesContainer = new VBox(15);
     private final Consumer<String> onInstanceClick;
     private long pressStartTime;
+    
+    private String t(String key) {
+        return LanguageStrings.get(key);
+    }
 
     public Sidebar(Runnable onHomeClick, Runnable onAddClick, Consumer<String> onInstanceClick, Runnable onSettingsClick) {
         this.onInstanceClick = onInstanceClick;
@@ -40,10 +46,10 @@ public class Sidebar extends VBox {
         this.setSpacing(15);
 
         // Основной стиль
-        this.setStyle("-fx-background-color: #161616; -fx-border-color: #2c2c2c; -fx-border-width: 0 1 0 0;");
+        this.setStyle("-fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-width: 0 1 0 0;");
 
         // Кнопка Логотипа
-        Button logoBtn = createSidebarButton("/icons/mak.png", "Главная (Зажать: Настройки)", 55);
+        Button logoBtn = createSidebarButton("/icons/mak.png", t("sidebar.home"), 55);
         logoBtn.setOnMousePressed(e -> {
             pressStartTime = System.currentTimeMillis();
             logoBtn.setOpacity(0.7);
@@ -63,9 +69,9 @@ public class Sidebar extends VBox {
 
         // Кнопка добавления (+)
         Button addBtn = new Button("+");
-        addBtn.setTooltip(new Tooltip("Добавить новую версию"));
+        addBtn.setTooltip(new Tooltip(t("sidebar.add.version")));
         addBtn.getStyleClass().add("sidebar-add-btn");
-        addBtn.setStyle("-fx-background-color: #2c2c2c; -fx-text-fill: #27ae60; -fx-font-size: 24px; " +
+        addBtn.setStyle("-fx-background-color: " + Themes.Colors.BG_TERTIARY + "; -fx-text-fill: " + Themes.Colors.SUCCESS_COLOR + "; -fx-font-size: 24px; " +
                 "-fx-background-radius: 50; -fx-min-width: 55px; -fx-min-height: 55px; -fx-cursor: hand;");
 
         addBtn.setOnAction(e -> onAddClick.run());
@@ -141,7 +147,7 @@ public class Sidebar extends VBox {
             }
             iv.setImage(img);
         } catch (Exception e) {
-            System.err.println("Ошибка Sidebar: " + iconPath);
+            Logger.error("Ошибка Sidebar: " + iconPath);
         }
 
         Circle clip = new Circle(size / 2.0, size / 2.0, size / 2.0);
@@ -188,7 +194,7 @@ public class Sidebar extends VBox {
                     if (!key.reset()) break;
                 }
             } catch (Exception e) {
-                System.err.println("Sidebar Watcher error: " + e.getMessage());
+                Logger.error("Sidebar Watcher error: " + e.getMessage());
             }
         });
         watcherThread.setDaemon(true);

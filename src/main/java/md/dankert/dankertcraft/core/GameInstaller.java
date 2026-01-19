@@ -3,6 +3,8 @@ package md.dankert.dankertcraft.core;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.utils.Downloader;
 import md.dankert.dankertcraft.cache.CacheManager;
 import md.dankert.dankertcraft.config.ConfigManager;
@@ -95,12 +97,12 @@ public class GameInstaller {
             
             return ids;
         } catch (Exception e) {
-            System.err.println("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш");
+            Logger.error("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш");
             List<String> cached = cacheMgr.getVersionsFromCache();
             if (cached != null) {
                 return cached;
             }
-            throw new IOException("Не удалось загрузить версии", e);
+            throw new IOException(LanguageStrings.get("error.download.versions"), e);
         }
     }
 
@@ -118,7 +120,7 @@ public class GameInstaller {
         VersionData.Manifest.Version selected = manifest.versions.stream()
                 .filter(v -> v.id.equals(version))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Версия '" + version + "' не найдена в манифесте Mojang!"));
+                .orElseThrow(() -> new RuntimeException(LanguageStrings.get("error.version.not.found") + " " + version));
 
         new File(versionDir).mkdirs();
 
@@ -136,7 +138,7 @@ public class GameInstaller {
         if (data.downloads != null && data.downloads.client != null) {
             File jarFile = new File(jarPath);
             if (needsUpdate(jarFile, data.downloads.client.sha1)) {
-                System.out.println("[Installer] Скачивание клиента: " + version);
+                Logger.info("[Installer] Скачивание клиента: " + version);
                 Downloader.downloadFile(data.downloads.client.url, jarPath);
             }
         }
@@ -154,7 +156,7 @@ public class GameInstaller {
         if (data.libraries == null) return;
 
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        System.out.println("[Installer] Проверка библиотек в 10 потоков...");
+        Logger.info("[Installer] Проверка библиотек в 10 потоков...");
 
         // Подсчитываем количество файлов
         int totalFiles = 0;
@@ -199,15 +201,15 @@ public class GameInstaller {
                     // Обновляем прогресс
                     synchronized (currentFile) {
                         currentFile[0]++;
-                        reportProgress("Загрузка библиотек", currentFile[0], totalFilesCopy);
+                        reportProgress(LanguageStrings.get("progress.downloading.libs"), currentFile[0], totalFilesCopy);
                     }
                 } catch (IOException e) {
-                    System.err.println("[Installer] Ошибка при загрузке библиотеки " + lib.name + ": " + e.getMessage());
+                    Logger.error("[Installer] Ошибка при загрузке библиотеки " + lib.name + ": " + e.getMessage());
                 }
             });
         }
 
-        waitForFinish(executor, "Библиотеки");
+        waitForFinish(executor, LanguageStrings.get("progress.waiting.libs"));
     }
 
     private void reportProgress(String stage, int current, int total) {
@@ -229,7 +231,10 @@ public class GameInstaller {
         if (url != null && path != null) {
             File file = new File(workDir + File.separator + "libraries" + File.separator + path);
             if (needsUpdate(file, sha1)) {
-                file.getParentFile().mkdirs();
+                File parentDir = file.getParentFile();
+                if (parentDir != null) {
+                    parentDir.mkdirs();
+                }
                 try (java.io.BufferedInputStream in = new java.io.BufferedInputStream(new java.net.URL(url).openStream());
                      java.io.FileOutputStream out = new java.io.FileOutputStream(file.getAbsolutePath())) {
                     byte[] buffer = new byte[8192];
@@ -249,7 +254,7 @@ public class GameInstaller {
         File indexFile = new File(path);
 
         if (needsUpdate(indexFile, index.sha1)) {
-            indexFile.getParentFile().mkdirs();
+            File indexParent = indexFile.getParentFile(); if (indexParent != null) indexParent.mkdirs();
             Downloader.downloadFile(index.url, path);
         }
 
@@ -268,7 +273,7 @@ public class GameInstaller {
         ExecutorService executor = Executors.newFixedThreadPool(15);
         int totalAssets = objects.size();
         final int[] currentAsset = {0};
-        System.out.println("[Installer] Проверка ассетов (" + totalAssets + " файлов). Legacy режим: " + isLegacy);
+        Logger.info("[Installer] Проверка ассетов (" + totalAssets + " файлов). Legacy режим: " + isLegacy);
 
         for (Map.Entry<String, JsonElement> entry : objects.entrySet()) {
             String assetName = entry.getKey();
@@ -286,7 +291,7 @@ public class GameInstaller {
 
                     boolean downloaded = false;
                     if (!objectFile.exists() || objectFile.length() != size) {
-                        objectFile.getParentFile().mkdirs();
+                        File objParent = objectFile.getParentFile(); if (objParent != null) objParent.mkdirs();
                         downloadAssetFile("https://resources.download.minecraft.net/" + sub + "/" + hash, objectFile.getAbsolutePath());
                         downloaded = true;
                     }
@@ -294,7 +299,7 @@ public class GameInstaller {
                     if (isLegacy) {
                         File virtualFile = new File(workDir, "assets/virtual/legacy/" + assetName);
                         if (!virtualFile.exists() || (downloaded)) {
-                            virtualFile.getParentFile().mkdirs();
+                            File virtParent = virtualFile.getParentFile(); if (virtParent != null) virtParent.mkdirs();
                             Files.copy(objectFile.toPath(), virtualFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                         }
                     }
@@ -302,16 +307,16 @@ public class GameInstaller {
                     // Обновляем прогресс
                     synchronized (currentAsset) {
                         currentAsset[0]++;
-                        reportProgress("Синхронизация ассетов", currentAsset[0], totalAssets);
+                        reportProgress(LanguageStrings.get("progress.syncing.assets"), currentAsset[0], totalAssets);
                     }
 
                 } catch (Exception e) {
-                    System.err.println("[Installer] Ошибка при загрузке ассета: " + e.getMessage());
+                    Logger.error("[Installer] Ошибка при загрузке ассета: " + e.getMessage());
                 }
             });
         }
 
-        waitForFinish(executor, "Ассеты");
+        waitForFinish(executor, LanguageStrings.get("progress.waiting.assets"));
     }
 
     private void downloadAssetFile(String url, String destPath) throws IOException {
@@ -332,7 +337,7 @@ public class GameInstaller {
             if (!executor.awaitTermination(30, TimeUnit.MINUTES)) {
                 executor.shutdownNow();
             }
-            System.out.println("[Installer] Загрузка завершена: " + label);
+            Logger.info("[Installer] Загрузка завершена: " + label);
         } catch (InterruptedException e) {
             executor.shutdownNow();
             Thread.currentThread().interrupt();

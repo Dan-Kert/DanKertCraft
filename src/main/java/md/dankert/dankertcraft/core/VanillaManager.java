@@ -2,7 +2,8 @@ package md.dankert.dankertcraft.core;
 
 import com.google.gson.Gson;
 import md.dankert.dankertcraft.utils.OSHelper;
-
+import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -23,7 +24,7 @@ public class VanillaManager {
     }
 
     public VersionData prepare(String version, ProgressListener listener) throws IOException {
-        if (listener != null) listener.onProgress("Анализ файлов игры...", 0, 1, 0);
+        if (listener != null) listener.onProgress(LanguageStrings.get("progress.analyzing.game"), 0, 1, 0);
 
         File versionFolder = new File(workDir, "versions/" + version);
         File jsonFile = new File(versionFolder, version + ".json");
@@ -59,7 +60,7 @@ public class VanillaManager {
             javaBin.setExecutable(true, false);
             return javaBin.getAbsolutePath();
         } catch (Exception e) {
-            System.err.println("[Java] Ошибка: " + e.getMessage());
+            Logger.error("[Java] Ошибка: " + e.getMessage());
             return "java";
         }
     }
@@ -69,7 +70,7 @@ public class VanillaManager {
      */
     public String setupJavaRuntime(String mcVersion, String explicitJavaVersion, ProgressListener listener) {
         int requiredVer = parseJavaVersion(explicitJavaVersion);
-        System.out.println("[VanillaManager] 🔧 Используем явно указанную Java версию: " + requiredVer);
+        Logger.info("[VanillaManager] 🔧 Используем явно указанную Java версию: " + requiredVer);
         
         File javaFolder = new File(workDir, "runtime/java" + requiredVer);
         File javaBin = new File(javaFolder, "bin/java");
@@ -84,7 +85,7 @@ public class VanillaManager {
             javaBin.setExecutable(true, false);
             return javaBin.getAbsolutePath();
         } catch (Exception e) {
-            System.err.println("[Java] Ошибка при установке Java " + requiredVer + ": " + e.getMessage());
+            Logger.error("[Java] Ошибка при установке Java " + requiredVer + ": " + e.getMessage());
             return "java";
         }
     }
@@ -99,7 +100,7 @@ public class VanillaManager {
             String numStr = javaVersionStr.replaceAll("[^0-9]", "");
             return Integer.parseInt(numStr);
         } catch (Exception e) {
-            System.err.println("[VanillaManager] Не удалось распарсить версию Java: " + javaVersionStr);
+            Logger.error("[VanillaManager] Не удалось распарсить версию Java: " + javaVersionStr);
             return 17; // По умолчанию Java 17
         }
     }
@@ -149,12 +150,12 @@ public class VanillaManager {
 
                 // Передаем данные в UI: Этап, Прогресс файла (в %), Общий счетчик байт
                 if (listener != null) {
-                    listener.onProgress("Загрузка Java Runtime", (int)((downloaded * 100) / fileSize), 100, totalBytesDownloaded);
+                    listener.onProgress(LanguageStrings.get("progress.java.runtime"), (int)((downloaded * 100) / fileSize), 100, totalBytesDownloaded);
                 }
             }
         }
 
-        if (listener != null) listener.onProgress("Распаковка Java...", 100, 100, totalBytesDownloaded);
+        if (listener != null) listener.onProgress(LanguageStrings.get("progress.extracting.java"), 100, 100, totalBytesDownloaded);
 
         ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tempFile.getAbsolutePath(), "-C", destFolder.getAbsolutePath(), "--strip-components=1");
         pb.start().waitFor();

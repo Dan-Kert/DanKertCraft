@@ -5,7 +5,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import md.dankert.dankertcraft.platform.PlatformHelper;
 import md.dankert.dankertcraft.utils.FileDownloadHelper;
-
+import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -67,7 +68,7 @@ public class JavaRuntimeManager {
         
         // 5. Проверяем после загрузки
         if (!isJavaInstalled(javaExecutablePath)) {
-            throw new IOException("Не удалось установить Java " + requiredJavaVersion);
+            throw new IOException(LanguageStrings.get("error.java.install.failed") + " " + requiredJavaVersion);
         }
         
         log("✅ Java " + requiredJavaVersion + " успешно установлена");
@@ -140,7 +141,7 @@ public class JavaRuntimeManager {
             FileDownloadHelper.downloadFile(downloadUrl, zipPath, (downloaded, total) -> {
                 if (progressListener != null && total > 0) {
                     int percent = (int) ((downloaded * 100) / total);
-                    progressListener.onProgress("Загрузка Java " + javaVersion + "... " + percent + "%", 
+                    progressListener.onProgress(LanguageStrings.get("progress.java.download") + " " + javaVersion + "... " + percent + "%", 
                                               percent, 100, downloaded);
                 }
             });
@@ -159,7 +160,7 @@ public class JavaRuntimeManager {
             
             log("✅ Java " + javaVersion + " установлена в " + targetDir);
         } catch (IOException e) {
-            throw new IOException("Не удалось загрузить Java " + javaVersion + ": " + e.getMessage(), e);
+            throw new IOException(LanguageStrings.get("error.java.download.failed") + " " + javaVersion + ": " + e.getMessage(), e);
         }
     }
     
@@ -249,7 +250,7 @@ public class JavaRuntimeManager {
             
             return line != null ? line : "Unknown";
         } catch (Exception e) {
-            throw new IOException("Не удалось определить версию Java: " + e.getMessage());
+            throw new IOException(LanguageStrings.get("error.java.version.detect.failed") + ": " + e.getMessage());
         }
     }
     
@@ -257,6 +258,6 @@ public class JavaRuntimeManager {
      * Внутреннее логирование
      */
     private void log(String message) {
-        System.out.println("[JavaRuntimeManager] " + message);
+        Logger.info("[JavaRuntimeManager] " + message);
     }
 }

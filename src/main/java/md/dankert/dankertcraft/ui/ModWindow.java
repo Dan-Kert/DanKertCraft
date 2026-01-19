@@ -1,6 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import javafx.application.Platform;
+import md.dankert.dankertcraft.utils.Logger;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -13,6 +14,7 @@ import javafx.stage.Stage;
 import md.dankert.dankertcraft.utils.OSHelper;
 import md.dankert.dankertcraft.utils.Downloader;
 import md.dankert.dankertcraft.utils.InstanceConfigHelper;
+import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.mods.ModrinthAPI;
 import md.dankert.dankertcraft.mods.ModrinthAPI.ModInfo;
 import java.io.File;
@@ -50,41 +52,49 @@ public class ModWindow {
         try {
             com.google.gson.JsonObject config = InstanceConfigHelper.loadInstanceConfig(workDir, instanceName);
             String version = InstanceConfigHelper.getGameVersion(config);
-            System.out.println("[ModWindow] Версия инстанса: " + version);
+            Logger.info("[ModWindow] Версия инстанса: " + version);
             return version;
         } catch (Exception e) {
-            System.out.println("[ModWindow] Ошибка чтения версии: " + e.getMessage());
+            Logger.info("[ModWindow] Ошибка чтения версии: " + e.getMessage());
         }
         
         // Значение по умолчанию, если файл не найден
         return "1.20.1";
     }
 
+    /**
+     * Получить переведённую строку
+     */
+    private String t(String key) {
+        return LanguageStrings.get(key);
+    }
+
     public void show() {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle("Управление модами: " + instanceName);
+        stage.setTitle(t("window.manage.mods") + instanceName);
         stage.setWidth(900);
         stage.setHeight(650);
 
         // === ВКЛАДКИ ===
         TabPane tabPane = new TabPane();
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        tabPane.setStyle("-fx-background-color: #121212;");
+        tabPane.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
 
         // Вкладка 1: Локальные моды
         Tab localTab = new Tab();
-        localTab.setText("📦 Локальные моды");
+        localTab.setText(t("mod.tab.local"));
         localTab.setContent(createLocalModsTab());
 
         // Вкладка 2: Поиск на Modrinth
         Tab modrinthTab = new Tab();
-        modrinthTab.setText("🌐 Modrinth");
+        modrinthTab.setText(t("mod.tab.modrinth"));
         modrinthTab.setContent(createModrinthTab());
 
         tabPane.getTabs().addAll(localTab, modrinthTab);
 
         Scene scene = new Scene(tabPane);
+        Themes.applyDarkTheme(scene);
         stage.setScene(scene);
         stage.show();
     }
@@ -92,22 +102,22 @@ public class ModWindow {
     private VBox createLocalModsTab() {
         VBox layout = new VBox(15);
         layout.setPadding(new Insets(20));
-        layout.setStyle("-fx-background-color: #121212;");
+        layout.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
 
         // --- ЗАГОЛОВОК ---
-        Label title = new Label("МОДИФИКАЦИИ");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2ecc71;");
+        Label title = new Label(t("mod.title"));
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + ";");
 
         // --- ПОИСК ---
         HBox searchBox = new HBox(10);
         searchBox.setAlignment(Pos.CENTER_LEFT);
         
-        Label searchLabel = new Label("🔍 Поиск:");
-        searchLabel.setStyle("-fx-text-fill: #ecf0f1; -fx-font-size: 12px;");
+        Label searchLabel = new Label(t("mod.search"));
+        searchLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 12px;");
         
         searchField.setPromptText("Введите название мода...");
         searchField.setPrefHeight(30);
-        searchField.setStyle("-fx-padding: 8px; -fx-font-size: 12px; -fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-border-color: #333; -fx-border-radius: 5;");
+        searchField.setStyle("-fx-padding: 8px; -fx-font-size: 12px; -fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5;");
         searchField.textProperty().addListener((obs, oldVal, newVal) -> filterMods(newVal));
         
         HBox.setHgrow(searchField, Priority.ALWAYS);
@@ -115,34 +125,34 @@ public class ModWindow {
 
         // --- СПИСОК МОДОВ ---
         modsList.setPrefHeight(250);
-        modsList.setStyle("-fx-control-inner-background: #1e1e1e; -fx-text-fill: white; -fx-font-size: 12px;");
+        modsList.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + "; -fx-control-inner-background: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + ";");
         modsList.setCellFactory(param -> new ModListCell());
 
         loadModsList();
 
         ScrollPane scrollPane = new ScrollPane(modsList);
-        scrollPane.setStyle("-fx-background-color: #121212; -fx-control-inner-background: #121212;");
+        scrollPane.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + "; -fx-control-inner-background: " + Themes.Colors.BG_PRIMARY + ";");
         scrollPane.setFitToWidth(true);
 
         // --- СКАЧИВАНИЕ ПО ССЫЛКЕ ---
         HBox downloadBox = new HBox(10);
         downloadBox.setAlignment(Pos.CENTER_LEFT);
         downloadBox.setPadding(new Insets(10));
-        downloadBox.setStyle("-fx-border-color: #333; -fx-border-radius: 5; -fx-background-color: #1a1a1a;");
+        downloadBox.setStyle("-fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5; -fx-background-color: " + Themes.Colors.BG_SECONDARY + ";");
         
-        Label urlLabel = new Label("📥 Скачать мод:");
-        urlLabel.setStyle("-fx-text-fill: #ecf0f1; -fx-font-size: 12px;");
+        Label urlLabel = new Label(t("mod.download.url"));
+        urlLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 12px;");
         
         TextField urlField = new TextField();
         urlField.setPromptText("Вставьте ссылку на .jar или .zip мод...");
         urlField.setPrefHeight(30);
-        urlField.setStyle("-fx-padding: 8px; -fx-font-size: 12px; -fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-border-color: #333; -fx-border-radius: 5;");
+        urlField.setStyle("-fx-padding: 8px; -fx-font-size: 12px; -fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5;");
         HBox.setHgrow(urlField, Priority.ALWAYS);
         
-        Button downloadBtn = new Button("Скачать");
+        Button downloadBtn = new Button(t("mod.download"));
         downloadBtn.setPrefWidth(100);
         downloadBtn.setPrefHeight(30);
-        downloadBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-font-size: 11px;");
+        downloadBtn.setStyle("-fx-background-color: " + Themes.Colors.BUTTON_PRIMARY + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-font-size: 11px;");
         downloadBtn.setOnAction(e -> downloadModFromUrl(urlField.getText(), urlField));
         
         downloadBox.getChildren().addAll(urlLabel, urlField, downloadBtn);
@@ -151,20 +161,20 @@ public class ModWindow {
         HBox btnBox = new HBox(10);
         btnBox.setAlignment(Pos.CENTER_LEFT);
 
-        Button addBtn = new Button("➕ Добавить мод");
-        addBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
+        Button addBtn = new Button(t("button.add.mod"));
+        addBtn.setStyle("-fx-background-color: " + Themes.Colors.SUCCESS_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
         addBtn.setOnAction(e -> addMod());
 
-        Button deleteBtn = new Button("🗑 Удалить");
-        deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
+        Button deleteBtn = new Button(t("button.delete.mod"));
+        deleteBtn.setStyle("-fx-background-color: " + Themes.Colors.ERROR_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
         deleteBtn.setOnAction(e -> deleteMod());
 
-        Button openFolderBtn = new Button("📁 Открыть папку");
-        openFolderBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
+        Button openFolderBtn = new Button(t("mod.open.folder"));
+        openFolderBtn.setStyle("-fx-background-color: " + Themes.Colors.ACCENT_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
         openFolderBtn.setOnAction(e -> openModsFolder());
 
         Button refreshBtn = new Button("🔄 Обновить");
-        refreshBtn.setStyle("-fx-background-color: #34495e; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
+        refreshBtn.setStyle("-fx-background-color: " + Themes.Colors.BG_TERTIARY + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
         refreshBtn.setOnAction(e -> {
             searchField.clear();
             loadModsList();
@@ -174,7 +184,7 @@ public class ModWindow {
 
         // --- ИНФОРМАЦИЯ ---
         Label infoLabel = new Label("Поддерживаемые форматы: .jar, .zip | Всего модов: 0");
-        infoLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 11px;");
+        infoLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 11px;");
 
         layout.getChildren().addAll(title, searchBox, scrollPane, downloadBox, btnBox, infoLabel);
         return layout;
@@ -183,36 +193,36 @@ public class ModWindow {
     private VBox createModrinthTab() {
         VBox layout = new VBox(15);
         layout.setPadding(new Insets(20));
-        layout.setStyle("-fx-background-color: #121212;");
+        layout.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
 
-        Label title = new Label("ПОИСК МОДОВ");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2ecc71;");
+        Label title = new Label(t("mod.search.title"));
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + ";");
 
         // --- ИНФОРМАЦИЯ О ВЕРСИИ ---
         HBox versionInfoBox = new HBox(10);
         versionInfoBox.setPadding(new Insets(10));
-        versionInfoBox.setStyle("-fx-border-color: #2ecc71; -fx-border-radius: 5; -fx-background-color: #1a1a1a;");
+        versionInfoBox.setStyle("-fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5; -fx-background-color: " + Themes.Colors.BG_SECONDARY + ";");
         versionInfoBox.setAlignment(Pos.CENTER_LEFT);
 
         Label versionLabel = new Label("📦 Версия: " + gameVersion + "  |  🔧 Модлоадер: " + loaderType);
-        versionLabel.setStyle("-fx-text-fill: #2ecc71; -fx-font-size: 12px; -fx-font-weight: bold;");
+        versionLabel.setStyle("-fx-text-fill: " + Themes.Colors.ACCENT_COLOR + "; -fx-font-size: 12px; -fx-font-weight: bold;");
         versionInfoBox.getChildren().add(versionLabel);
 
         // --- СТРОКА ПОИСКА ---
         HBox searchBox = new HBox(10);
         searchBox.setAlignment(Pos.CENTER_LEFT);
         
-        Label searchLabel = new Label("🔍 Поиск:");
-        searchLabel.setStyle("-fx-text-fill: #ecf0f1; -fx-font-size: 12px; -fx-font-weight: bold;");
+        Label searchLabel = new Label(t("mod.search"));
+        searchLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 12px; -fx-font-weight: bold;");
         
         modrinthSearchField.setPromptText("Введите название мода (например: 'Sodium', 'JEI')...");
         modrinthSearchField.setPrefHeight(35);
-        modrinthSearchField.setStyle("-fx-padding: 10px; -fx-font-size: 13px; -fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-border-color: #2ecc71; -fx-border-width: 1; -fx-border-radius: 5;");
+        modrinthSearchField.setStyle("-fx-padding: 10px; -fx-font-size: 13px; -fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-width: 1; -fx-border-radius: 5;");
         
-        Button searchBtn = new Button("🔍 Поиск");
+        Button searchBtn = new Button(t("mod.search"));
         searchBtn.setPrefWidth(110);
         searchBtn.setPrefHeight(35);
-        searchBtn.setStyle("-fx-background-color: #2ecc71; -fx-text-fill: #000; -fx-cursor: hand; -fx-background-radius: 5; -fx-font-weight: bold; -fx-font-size: 12px;");
+        searchBtn.setStyle("-fx-background-color: " + Themes.Colors.BUTTON_PRIMARY + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-font-weight: bold; -fx-font-size: 12px;");
         searchBtn.setOnAction(e -> searchModrinthMods(modrinthSearchField.getText()));
         
         HBox.setHgrow(modrinthSearchField, Priority.ALWAYS);
@@ -220,34 +230,34 @@ public class ModWindow {
 
         // --- СПИСОК РЕЗУЛЬТАТОВ ---
         modrinthList.setPrefHeight(300);
-        modrinthList.setStyle("-fx-control-inner-background: #1e1e1e; -fx-text-fill: white; -fx-font-size: 12px;");
+        modrinthList.setStyle("-fx-control-inner-background: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 12px; -fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
         modrinthList.setCellFactory(param -> new ModrinthListCell());
 
         ScrollPane scrollPane = new ScrollPane(modrinthList);
-        scrollPane.setStyle("-fx-background-color: #121212; -fx-control-inner-background: #121212;");
+        scrollPane.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + "; -fx-control-inner-background: " + Themes.Colors.BG_PRIMARY + ";");
         scrollPane.setFitToWidth(true);
 
         // --- КНОПКИ ДЕЙСТВИЙ ---
         HBox actionBox = new HBox(10);
         actionBox.setAlignment(Pos.CENTER_LEFT);
 
-        Button downloadBtn = new Button("⬇ Скачать");
+        Button downloadBtn = new Button(t("mod.download"));
         downloadBtn.setPrefWidth(130);
         downloadBtn.setPrefHeight(35);
-        downloadBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15; -fx-font-weight: bold;");
+        downloadBtn.setStyle("-fx-background-color: " + Themes.Colors.SUCCESS_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15; -fx-font-weight: bold;");
         downloadBtn.setOnAction(e -> downloadSelectedModrinthMod());
 
-        Button openBtn = new Button("🌐 Открыть в Modrinth");
+        Button openBtn = new Button(t("mod.open.modrinth"));
         openBtn.setPrefWidth(160);
         openBtn.setPrefHeight(35);
-        openBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15; -fx-font-weight: bold;");
+        openBtn.setStyle("-fx-background-color: " + Themes.Colors.ACCENT_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15; -fx-font-weight: bold;");
         openBtn.setOnAction(e -> openModrinthPage());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label helpLabel = new Label("💡 Подсказка: выберите мод из списка и нажмите 'Скачать' для установки");
-        helpLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 11px; -fx-italic: true;");
+        Label helpLabel = new Label(t("mod.hint"));
+        helpLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 11px; -fx-italic: true;");
 
         actionBox.getChildren().addAll(downloadBtn, openBtn, spacer, helpLabel);
 
@@ -257,17 +267,17 @@ public class ModWindow {
 
     private void searchModrinthMods(String query) {
         if (query == null || query.trim().isEmpty()) {
-            showError("❌ Введите название мода для поиска");
+            showError(t("mod.error.name"));
             return;
         }
 
         modrinthList.getItems().clear();
         modrinthResults.clear();
-        modrinthList.getItems().add("🔄 Поиск модов: '" + query + "' для " + gameVersion + "...");
+        modrinthList.getItems().add(t("mod.searching") + query + "' для " + gameVersion + "...");
 
         new Thread(() -> {
             try {
-                System.out.println("[ModWindow] Начало поиска: " + query);
+                Logger.info("[ModWindow] Начало поиска: " + query);
                 ModrinthAPI api = new ModrinthAPI();
                 List<ModInfo> results = api.searchMods(query.trim(), gameVersion, loaderType);
 
@@ -284,15 +294,15 @@ public class ModWindow {
                             modrinthResults.add(mod);
                             modrinthList.getItems().add(mod.toString());
                         }
-                        System.out.println("[ModWindow] Найдено модов: " + results.size());
+                        Logger.info("[ModWindow] Найдено модов: " + results.size());
                     }
                 });
             } catch (Exception e) {
                 e.printStackTrace();
-                System.out.println("[ModWindow] Ошибка поиска: " + e.getMessage());
+                Logger.info("[ModWindow] Ошибка поиска: " + e.getMessage());
                 Platform.runLater(() -> {
                     modrinthList.getItems().clear();
-                    modrinthList.getItems().add("❌ ОШИБКА ПОИСКА");
+                    modrinthList.getItems().add(t("mod.search.error"));
                     modrinthList.getItems().add("Сообщение: " + e.getMessage());
                     modrinthList.getItems().add("");
                     modrinthList.getItems().add("💡 Возможные причины:");
@@ -307,7 +317,7 @@ public class ModWindow {
     private void downloadSelectedModrinthMod() {
         int selectedIdx = modrinthList.getSelectionModel().getSelectedIndex();
         if (selectedIdx < 0 || selectedIdx >= modrinthResults.size()) {
-            showError("Выберите мод для скачивания");
+            showError(t("error.select.mod.download"));
             return;
         }
 
@@ -345,7 +355,7 @@ public class ModWindow {
     private void openModrinthPage() {
         int selectedIdx = modrinthList.getSelectionModel().getSelectedIndex();
         if (selectedIdx < 0 || selectedIdx >= modrinthResults.size()) {
-            showError("Выберите мод");
+            showError(t("error.select.mod.open"));
             return;
         }
 
@@ -356,7 +366,7 @@ public class ModWindow {
                     Desktop.getDesktop().browse(new URL(mod.projectUrl).toURI());
                 }
             } catch (Exception e) {
-                System.err.println("[ModWindow] Ошибка открытия: " + e.getMessage());
+                Logger.error("[ModWindow] Ошибка открытия: " + e.getMessage());
             }
         }).start();
     }
@@ -428,13 +438,13 @@ public class ModWindow {
 
                 final String finalFileName = fileName; // Сделаем final для lambda
                 File destFile = new File(modsPath, fileName);
-                System.out.println("[ModWindow] Скачивание мода: " + urlStr);
+                Logger.info("[ModWindow] Скачивание мода: " + urlStr);
 
                 // Скачиваем файл
                 byte[] data = Downloader.downloadToBytes(urlStr.trim());
                 Files.write(destFile.toPath(), data);
 
-                System.out.println("[ModWindow] Мод скачан: " + fileName);
+                Logger.info("[ModWindow] Мод скачан: " + fileName);
                 Platform.runLater(() -> {
                     field.clear();
                     loadModsList();
@@ -448,7 +458,7 @@ public class ModWindow {
 
     private void showSuccess(String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Успех");
+        alert.setTitle(t("notification.success"));
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
@@ -456,7 +466,7 @@ public class ModWindow {
 
     private void addMod() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Выбрать мод");
+        chooser.setTitle(t("dialog.select.mod"));
         chooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("Моды (*.jar, *.zip)", "*.jar", "*.zip")
         );
@@ -466,7 +476,7 @@ public class ModWindow {
             try {
                 File destFile = new File(modsPath, selected.getName());
                 Files.copy(selected.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                System.out.println("[ModWindow] Мод установлен: " + selected.getName());
+                Logger.info("[ModWindow] Мод установлен: " + selected.getName());
                 loadModsList();
             } catch (Exception e) {
                 showError("Ошибка при установке мода: " + e.getMessage());
@@ -479,19 +489,19 @@ public class ModWindow {
         if (selectedIdx >= 0 && selectedIdx < modFiles.size()) {
             File modFile = modFiles.get(selectedIdx);
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-            confirm.setTitle("Удаление");
+            confirm.setTitle(t("notification.delete"));
             confirm.setHeaderText("Удалить мод: " + modFile.getName() + "?");
             
             if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
                 if (modFile.delete()) {
-                    System.out.println("[ModWindow] Мод удален: " + modFile.getName());
+                    Logger.info("[ModWindow] Мод удален: " + modFile.getName());
                     loadModsList();
                 } else {
                     showError("Не удалось удалить мод");
                 }
             }
         } else {
-            showError("Выберите мод для удаления");
+            showError(t("error.select.mod.delete"));
         }
     }
 
@@ -504,7 +514,7 @@ public class ModWindow {
                     Desktop.getDesktop().open(modsDir);
                 }
             } catch (Exception e) {
-                Platform.runLater(() -> showError("Не удалось открыть папку: " + e.getMessage()));
+                Platform.runLater(() -> showError(t("mod.open.error") + e.getMessage()));
             }
         }).start();
     }
@@ -512,7 +522,7 @@ public class ModWindow {
     private void showError(String message) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Ошибка");
+            alert.setTitle(t("error"));
             alert.setHeaderText(null);
             alert.setContentText(message);
             alert.showAndWait();
@@ -534,7 +544,7 @@ public class ModWindow {
                     
                     VBox container = new VBox(8);
                     container.setPadding(new Insets(12));
-                    container.setStyle("-fx-border-color: #2ecc71; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-color: #1a1a1a;");
+                    container.setStyle("-fx-border-color: " + Themes.Colors.SUCCESS_COLOR + "; -fx-border-width: 1; -fx-border-radius: 5; -fx-background-color: " + Themes.Colors.BG_SECONDARY + ";");
 
                     // --- Заголовок: имя и статистика ---
                     HBox headerBox = new HBox(15);
@@ -542,10 +552,10 @@ public class ModWindow {
 
                     VBox nameBox = new VBox(3);
                     Label name = new Label("📦 " + mod.name);
-                    name.setStyle("-fx-text-fill: #2ecc71; -fx-font-size: 13px; -fx-font-weight: bold;");
+                    name.setStyle("-fx-text-fill: " + Themes.Colors.SUCCESS_COLOR + "; -fx-font-size: 13px; -fx-font-weight: bold;");
                     
                     Label version = new Label("v" + mod.version);
-                    version.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 10px;");
+                    version.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 10px;");
                     nameBox.getChildren().addAll(name, version);
 
                     Region spacer = new Region();
@@ -553,13 +563,13 @@ public class ModWindow {
 
                     String downloadCount = formatDownloads((int)mod.downloads);
                     Label stats = new Label("⬇ " + downloadCount + " загрузок");
-                    stats.setStyle("-fx-font-size: 10px; -fx-text-fill: #e67e22;");
+                    stats.setStyle("-fx-font-size: 10px; -fx-text-fill: " + Themes.Colors.WARNING_COLOR + ";");
 
                     headerBox.getChildren().addAll(nameBox, spacer, stats);
 
                     // --- Автор ---
                     Label author = new Label("👤 Автор: " + mod.author);
-                    author.setStyle("-fx-font-size: 11px; -fx-text-fill: #3498db;");
+                    author.setStyle("-fx-font-size: 11px; -fx-text-fill: " + Themes.Colors.ACCENT_COLOR + ";");
 
                     // --- Описание ---
                     String desc = mod.description != null ? mod.description : "Описание отсутствует";
@@ -567,7 +577,7 @@ public class ModWindow {
                         desc = desc.substring(0, 97) + "...";
                     }
                     Label description = new Label(desc);
-                    description.setStyle("-fx-font-size: 11px; -fx-text-fill: #bdc3c7; -fx-wrap-text: true;");
+                    description.setStyle("-fx-font-size: 11px; -fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-wrap-text: true;");
                     description.setWrapText(true);
                     description.setMaxWidth(650);
 
@@ -578,7 +588,7 @@ public class ModWindow {
                     // Модлоадер
                     if (mod.loaders != null && !mod.loaders.isEmpty()) {
                         Label badge = new Label(mod.loaders.toUpperCase());
-                        badge.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-padding: 3 8; -fx-background-radius: 3; -fx-font-size: 9px; -fx-font-weight: bold;");
+                        badge.setStyle("-fx-background-color: " + Themes.Colors.ACCENT_COLOR + "; -fx-text-fill: white; -fx-padding: 3 8; -fx-background-radius: 3; -fx-font-size: 9px; -fx-font-weight: bold;");
                         badgesBox.getChildren().add(badge);
                     }
 
@@ -587,12 +597,12 @@ public class ModWindow {
                         int versionCount = Math.min(3, mod.gameVersions.size());
                         for (int i = 0; i < versionCount; i++) {
                             Label badge = new Label(mod.gameVersions.get(i));
-                            badge.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-padding: 3 8; -fx-background-radius: 3; -fx-font-size: 9px;");
+                            badge.setStyle("-fx-background-color: " + Themes.Colors.SUCCESS_COLOR + "; -fx-text-fill: white; -fx-padding: 3 8; -fx-background-radius: 3; -fx-font-size: 9px;");
                             badgesBox.getChildren().add(badge);
                         }
                         if (mod.gameVersions.size() > 3) {
                             Label badge = new Label("+" + (mod.gameVersions.size() - 3) + " еще");
-                            badge.setStyle("-fx-background-color: #555; -fx-text-fill: #aaa; -fx-padding: 3 8; -fx-background-radius: 3; -fx-font-size: 9px;");
+                            badge.setStyle("-fx-background-color: " + Themes.Colors.BG_TERTIARY + "; -fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-padding: 3 8; -fx-background-radius: 3; -fx-font-size: 9px;");
                             badgesBox.getChildren().add(badge);
                         }
                     }
@@ -601,7 +611,7 @@ public class ModWindow {
 
                     // Стиль при выборе
                     if (isSelected()) {
-                        container.setStyle("-fx-border-color: #f39c12; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-color: #1a1a1a;");
+                        container.setStyle("-fx-border-color: " + Themes.Colors.WARNING_COLOR + "; -fx-border-width: 2; -fx-border-radius: 5; -fx-background-color: " + Themes.Colors.BG_SECONDARY + ";");
                     }
 
                     setGraphic(container);
@@ -630,13 +640,13 @@ public class ModWindow {
                 HBox cell = new HBox(10);
                 cell.setAlignment(Pos.CENTER_LEFT);
                 cell.setPadding(new Insets(8));
-                cell.setStyle("-fx-border-color: #333; -fx-border-radius: 5; -fx-background-color: #1a1a1a;");
+                cell.setStyle("-fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5; -fx-background-color: " + Themes.Colors.BG_SECONDARY + ";");
 
                 Label icon = new Label("📦");
                 icon.setStyle("-fx-font-size: 14px;");
 
                 Label name = new Label(item);
-                name.setStyle("-fx-text-fill: #ecf0f1; -fx-font-size: 12px;");
+                name.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 12px;");
 
                 cell.getChildren().addAll(icon, name);
                 setGraphic(cell);
