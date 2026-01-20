@@ -48,7 +48,7 @@ public class VanillaManager {
     public String setupJavaRuntime(String mcVersion, ProgressListener listener) {
         int requiredVer = getRequiredJavaVersion(mcVersion);
         File javaFolder = new File(workDir, "runtime/java" + requiredVer);
-        File javaBin = new File(javaFolder, "bin/java");
+        File javaBin = new File(javaFolder, "bin" + File.separator + md.dankert.dankertcraft.platform.PlatformHelper.getJavaExecutableName());
 
         if (javaBin.exists()) {
             if (!javaBin.canExecute()) javaBin.setExecutable(true, false);
@@ -73,7 +73,7 @@ public class VanillaManager {
         Logger.info("[VanillaManager] 🔧 Используем явно указанную Java версию: " + requiredVer);
         
         File javaFolder = new File(workDir, "runtime/java" + requiredVer);
-        File javaBin = new File(javaFolder, "bin/java");
+        File javaBin = new File(javaFolder, "bin" + File.separator + md.dankert.dankertcraft.platform.PlatformHelper.getJavaExecutableName());
 
         if (javaBin.exists()) {
             if (!javaBin.canExecute()) javaBin.setExecutable(true, false);
@@ -160,6 +160,29 @@ public class VanillaManager {
         ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tempFile.getAbsolutePath(), "-C", destFolder.getAbsolutePath(), "--strip-components=1");
         pb.start().waitFor();
         tempFile.delete();
+        
+        // ДИАГНОСТИКА: проверяем что Java успешно распакована
+        File javaExec = new File(destFolder, "bin" + File.separator + md.dankert.dankertcraft.platform.PlatformHelper.getJavaExecutableName());
+        if (!javaExec.exists()) {
+            Logger.error("[VanillaManager] ❌ ОШИБКА: Java не распакована правильно!");
+            Logger.error("[VanillaManager] Ожидается файл: " + javaExec.getAbsolutePath());
+            
+            // Список файлов в bin директории для диагностики
+            File binDir = new File(destFolder, "bin");
+            if (binDir.exists()) {
+                Logger.error("[VanillaManager] Содержимое bin директории:");
+                File[] files = binDir.listFiles();
+                if (files != null) {
+                    for (File f : files) {
+                        Logger.error("[VanillaManager]   " + f.getName() + (f.isDirectory() ? "/" : ""));
+                    }
+                }
+            } else {
+                Logger.error("[VanillaManager] ❌ Директория bin НЕ СУЩЕСТВУЕТ!");
+            }
+            throw new IOException("Java Runtime распакована неправильно: " + javaExec.getAbsolutePath() + " не найден");
+        }
+        Logger.info("[VanillaManager] ✅ Java Runtime успешно установлена: " + javaExec.getAbsolutePath());
     }
 
     // --- ОСТАЛЬНЫЕ МЕТОДЫ (Extract Natives, Classpath и др.) ---

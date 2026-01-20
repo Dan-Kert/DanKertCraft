@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import md.dankert.dankertcraft.utils.Logger;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -295,6 +296,8 @@ public class GameLauncher {
         try {
             Process gameProcess = pb.start();
             
+            Logger.info("[GameLauncher] ✅ Процесс Java запущен успешно (PID: " + gameProcess.pid() + ")");
+            
             // Увеличиваем счетчик запусков
             updateLaunchStats(instanceName);
             
@@ -344,6 +347,27 @@ public class GameLauncher {
             playtimeTracker.start();
             
             return gameProcess;
+        } catch (IOException e) {
+            // CreateProcess error=193 - файл не является приложением Win32
+            if (e.getMessage() != null && (e.getMessage().contains("CreateProcess error=193") || 
+                                          e.getMessage().contains("cannot run program"))) {
+                Logger.error("[GameLauncher] ❌ ОШИБКА ЗАПУСКА (CreateProcess error=193)");
+                Logger.error("[GameLauncher] Java путь: " + javaExec);
+                Logger.error("[GameLauncher] ОС: " + System.getProperty("os.name"));
+                Logger.error("[GameLauncher] Архитектура: " + System.getProperty("os.arch"));
+                Logger.error("[GameLauncher] ");
+                Logger.error("[GameLauncher] РЕШЕНИЕ:");
+                Logger.error("[GameLauncher] 1. Проверьте, что Java существует по пути: " + javaExec);
+                Logger.error("[GameLauncher] 2. Если путь содержит пробелы (например 'java 8'), это нормально - ProcessBuilder правильно их обработает");
+                Logger.error("[GameLauncher] 3. На Windows может быть проблема с разрядностью Java (32-бит вместо 64-бит)");
+                Logger.error("[GameLauncher] 4. Убедитесь, что это Windows исполняемый файл (java.exe), а не Linux версия");
+                Logger.error("[GameLauncher] ");
+                Logger.error("[GameLauncher] Причина: " + e.getMessage());
+            } else {
+                Logger.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage());
+            }
+            e.printStackTrace();
+            throw e;
         } catch (Exception e) {
             Logger.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage());
             e.printStackTrace();
