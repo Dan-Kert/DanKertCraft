@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -57,7 +57,7 @@ public class BuildExporter {
             File instanceJson = new File(instanceDir, "instance.json");
             
             if (!instanceJson.exists()) {
-                Logger.error("[BuildExporter] Файл конфига сборки не найден: " + instanceJson.getPath());
+                LogSystem.error("[BuildExporter] Файл конфига сборки не найден: " + instanceJson.getPath());
                 return null;
             }
             
@@ -87,11 +87,11 @@ public class BuildExporter {
             String json = gson.toJson(buildConfig);
             Files.writeString(exportFile.toPath(), json);
             
-            Logger.info("[BuildExporter] Сборка экспортирована: " + exportFile.getPath());
+            LogSystem.info("[BuildExporter] Сборка экспортирована: " + exportFile.getPath());
             return exportFile;
             
         } catch (Exception e) {
-            Logger.error("[BuildExporter] Ошибка при экспорте: " + e.getMessage());
+            LogSystem.error("[BuildExporter] Ошибка при экспорте: " + e.getMessage());
             return null;
         }
     }
@@ -102,7 +102,7 @@ public class BuildExporter {
     public static boolean importBuild(String workDir, File buildFile) {
         try {
             if (!buildFile.exists() || !buildFile.getName().endsWith(".dkbuild")) {
-                Logger.error("[BuildExporter] Неверный формат файла: " + buildFile.getName());
+                LogSystem.error("[BuildExporter] Неверный формат файла: " + buildFile.getName());
                 return false;
             }
             
@@ -130,13 +130,13 @@ public class BuildExporter {
             File configFile = new File(instanceDir, "instance.json");
             Files.writeString(configFile.toPath(), gson.toJson(instanceJson));
             
-            Logger.info("[BuildExporter] Сборка импортирована: " + buildConfig.buildName);
-            Logger.info("[BuildExporter] Версия: " + buildConfig.version + ", Тип: " + buildConfig.type);
+            LogSystem.info("[BuildExporter] Сборка импортирована: " + buildConfig.buildName);
+            LogSystem.info("[BuildExporter] Версия: " + buildConfig.version + ", Тип: " + buildConfig.type);
             
             return true;
             
         } catch (Exception e) {
-            Logger.error("[BuildExporter] Ошибка при импорте: " + e.getMessage());
+            LogSystem.error("[BuildExporter] Ошибка при импорте: " + e.getMessage());
             return false;
         }
     }
@@ -154,7 +154,7 @@ public class BuildExporter {
                 BuildConfig.class
             );
         } catch (Exception e) {
-            Logger.error("[BuildExporter] Ошибка при чтении информации: " + e.getMessage());
+            LogSystem.error("[BuildExporter] Ошибка при чтении информации: " + e.getMessage());
             return null;
         }
     }
@@ -170,7 +170,7 @@ public class BuildExporter {
             File instanceJson = new File(instanceDir, "instance.json");
             
             if (!instanceJson.exists()) {
-                Logger.error("[BuildExporter] Файл конфига сборки не найден: " + instanceJson.getPath());
+                LogSystem.error("[BuildExporter] Файл конфига сборки не найден: " + instanceJson.getPath());
                 return null;
             }
             
@@ -260,11 +260,11 @@ public class BuildExporter {
                 }
             }
             
-            Logger.info("[BuildExporter] ZIP сборка экспортирована: " + exportFile.getPath());
+            LogSystem.info("[BuildExporter] ZIP сборка экспортирована: " + exportFile.getPath());
             return exportFile;
             
         } catch (Exception e) {
-            Logger.error("[BuildExporter] Ошибка при экспорте ZIP: " + e.getMessage());
+            LogSystem.error("[BuildExporter] Ошибка при экспорте ZIP: " + e.getMessage());
             e.printStackTrace();
             return null;
         }
@@ -276,7 +276,7 @@ public class BuildExporter {
     public static boolean importBuildFromZip(String workDir, File zipFile) {
         try {
             if (!zipFile.exists() || !zipFile.getName().endsWith(".dankertcraft")) {
-                Logger.error("[BuildExporter] Неверный формат файла: " + zipFile.getName());
+                LogSystem.error("[BuildExporter] Неверный формат файла: " + zipFile.getName());
                 return false;
             }
             
@@ -305,7 +305,7 @@ public class BuildExporter {
             }
             
             if (buildName == null) {
-                Logger.error("[BuildExporter] Не найден конфиг сборки в архиве");
+                LogSystem.error("[BuildExporter] Не найден конфиг сборки в архиве");
                 return false;
             }
             
@@ -348,12 +348,12 @@ public class BuildExporter {
                     try {
                         Files.move(from.toPath(), to.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     } catch (Exception ex) {
-                        Logger.error("[BuildExporter] Не удалось переместить иконку: " + ex.getMessage());
+                        LogSystem.error("[BuildExporter] Не удалось переместить иконку: " + ex.getMessage());
                     }
                 }
             }
             
-            Logger.info("[BuildExporter] ZIP сборка импортирована: " + buildName);
+            LogSystem.info("[BuildExporter] ZIP сборка импортирована: " + buildName);
 
             // Фоновая загрузка пакетов
             try {
@@ -374,21 +374,21 @@ public class BuildExporter {
                                     FabricManager fm = new FabricManager(workDir);
                                     fm.prepare(v);
                                 }
-                                Logger.info("[BuildExporter] Фоновые загрузки завершены для " + v);
+                                LogSystem.info("[BuildExporter] Фоновые загрузки завершены для " + v);
                             } catch (Exception ex) {
-                                Logger.error("[BuildExporter] Ошибка фоновой загрузки: " + ex.getMessage());
+                                LogSystem.error("[BuildExporter] Ошибка фоновой загрузки: " + ex.getMessage());
                             }
                         }).start();
                     }
                 }
             } catch (Exception ex) {
-                Logger.error("[BuildExporter] Ошибка запуска фоновой загрузки: " + ex.getMessage());
+                LogSystem.error("[BuildExporter] Ошибка запуска фоновой загрузки: " + ex.getMessage());
             }
 
             return true;
             
         } catch (Exception e) {
-            Logger.error("[BuildExporter] Ошибка при импорте ZIP: " + e.getMessage());
+            LogSystem.error("[BuildExporter] Ошибка при импорте ZIP: " + e.getMessage());
             e.printStackTrace();
             return false;
         }

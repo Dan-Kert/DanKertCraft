@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import javafx.application.Platform;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -52,10 +52,10 @@ public class ModWindow {
         try {
             com.google.gson.JsonObject config = InstanceConfigHelper.loadInstanceConfig(workDir, instanceName);
             String version = InstanceConfigHelper.getGameVersion(config);
-            Logger.info("[ModWindow] Версия инстанса: " + version);
+            LogSystem.info("[ModWindow] Версия инстанса: " + version);
             return version;
         } catch (Exception e) {
-            Logger.info("[ModWindow] Ошибка чтения версии: " + e.getMessage());
+            LogSystem.info("[ModWindow] Ошибка чтения версии: " + e.getMessage());
         }
         
         // Значение по умолчанию, если файл не найден
@@ -277,7 +277,7 @@ public class ModWindow {
 
         new Thread(() -> {
             try {
-                Logger.info("[ModWindow] Начало поиска: " + query);
+                LogSystem.info("[ModWindow] Начало поиска: " + query);
                 ModrinthAPI api = new ModrinthAPI();
                 List<ModInfo> results = api.searchMods(query.trim(), gameVersion, loaderType);
 
@@ -294,12 +294,12 @@ public class ModWindow {
                             modrinthResults.add(mod);
                             modrinthList.getItems().add(mod.toString());
                         }
-                        Logger.info("[ModWindow] Найдено модов: " + results.size());
+                        LogSystem.info("[ModWindow] Найдено модов: " + results.size());
                     }
                 });
             } catch (Exception e) {
                 e.printStackTrace();
-                Logger.info("[ModWindow] Ошибка поиска: " + e.getMessage());
+                LogSystem.info("[ModWindow] Ошибка поиска: " + e.getMessage());
                 Platform.runLater(() -> {
                     modrinthList.getItems().clear();
                     modrinthList.getItems().add(t("mod.search.error"));
@@ -366,7 +366,7 @@ public class ModWindow {
                     Desktop.getDesktop().browse(new URL(mod.projectUrl).toURI());
                 }
             } catch (Exception e) {
-                Logger.error("[ModWindow] Ошибка открытия: " + e.getMessage());
+                LogSystem.error("[ModWindow] Ошибка открытия: " + e.getMessage());
             }
         }).start();
     }
@@ -438,13 +438,13 @@ public class ModWindow {
 
                 final String finalFileName = fileName; // Сделаем final для lambda
                 File destFile = new File(modsPath, fileName);
-                Logger.info("[ModWindow] Скачивание мода: " + urlStr);
+                LogSystem.info("[ModWindow] Скачивание мода: " + urlStr);
 
                 // Скачиваем файл
                 byte[] data = Downloader.downloadToBytes(urlStr.trim());
                 Files.write(destFile.toPath(), data);
 
-                Logger.info("[ModWindow] Мод скачан: " + fileName);
+                LogSystem.info("[ModWindow] Мод скачан: " + fileName);
                 Platform.runLater(() -> {
                     field.clear();
                     loadModsList();
@@ -476,7 +476,7 @@ public class ModWindow {
             try {
                 File destFile = new File(modsPath, selected.getName());
                 Files.copy(selected.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                Logger.info("[ModWindow] Мод установлен: " + selected.getName());
+                LogSystem.info("[ModWindow] Мод установлен: " + selected.getName());
                 loadModsList();
             } catch (Exception e) {
                 showError("Ошибка при установке мода: " + e.getMessage());
@@ -494,7 +494,7 @@ public class ModWindow {
             
             if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
                 if (modFile.delete()) {
-                    Logger.info("[ModWindow] Мод удален: " + modFile.getName());
+                    LogSystem.info("[ModWindow] Мод удален: " + modFile.getName());
                     loadModsList();
                 } else {
                     showError("Не удалось удалить мод");

@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.platform;
 
 import java.io.File;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import java.util.Arrays;
 import java.util.List;
 
@@ -48,7 +48,7 @@ public class PlatformHelper {
             return OS.LINUX;
         } else {
             // Fallback на Linux для неизвестных Unix-подобных систем
-            Logger.error("[PlatformHelper] ⚠️  Неизвестная ОС: " + osName + ", используем Linux");
+            LogSystem.error("[PlatformHelper] ⚠️  Неизвестная ОС: " + osName + ", используем Linux");
             return OS.LINUX;
         }
     }

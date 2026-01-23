@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import javafx.application.Platform;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -228,9 +228,9 @@ public class DownloadStatusBar extends HBox {
                 for (File f : tempDir.listFiles((dir, name) -> name.startsWith("java_temp") && name.endsWith(".tar.gz"))) {
                     f.delete();
                 }
-                Logger.info("[StatusBar] Временные файлы удалены");
+                LogSystem.info("[StatusBar] Временные файлы удалены");
             } catch (Exception e) {
-                Logger.error("[StatusBar] Ошибка при удалении временных файлов: " + e.getMessage());
+                LogSystem.error("[StatusBar] Ошибка при удалении временных файлов: " + e.getMessage());
             }
         }).start();
     }

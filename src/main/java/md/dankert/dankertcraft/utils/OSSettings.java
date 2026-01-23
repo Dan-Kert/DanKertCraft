@@ -21,9 +21,9 @@ public class OSSettings {
             } else if (os.contains("linux")) {
                 setAutorunLinux(enabled);
             }
-            Logger.info("[OSSettings] Автозапуск " + (enabled ? "включен" : "отключен"));
+            LogSystem.info("[OSSettings] Автозапуск " + (enabled ? "включен" : "отключен"));
         } catch (Exception e) {
-            Logger.error("[OSSettings] Ошибка при установке автозапуска: " + e.getMessage());
+            LogSystem.error("[OSSettings] Ошибка при установке автозапуска: " + e.getMessage());
         }
     }
 
@@ -48,7 +48,7 @@ public class OSSettings {
                 return new File(desktopPath).exists();
             }
         } catch (Exception e) {
-            Logger.error("[OSSettings] Ошибка при проверке автозапуска: " + e.getMessage());
+            LogSystem.error("[OSSettings] Ошибка при проверке автозапуска: " + e.getMessage());
         }
         return false;
     }
@@ -137,9 +137,9 @@ public class OSSettings {
             } else if (os.contains("linux")) {
                 createShortcutLinux(gameName, create);
             }
-            Logger.info("[OSSettings] Ярлык " + gameName + " " + (create ? "создан" : "удалён"));
+            LogSystem.info("[OSSettings] Ярлык " + gameName + " " + (create ? "создан" : "удалён"));
         } catch (Exception e) {
-            Logger.error("[OSSettings] Ошибка при работе с ярлыком: " + e.getMessage());
+            LogSystem.error("[OSSettings] Ошибка при работе с ярлыком: " + e.getMessage());
         }
     }
 
@@ -165,9 +165,9 @@ public class OSSettings {
             try {
                 // Выполняем VBS скрипт
                 Runtime.getRuntime().exec(new String[]{"cscript.exe", tempVbs.getAbsolutePath()}).waitFor();
-                Logger.info("[OSSettings] Ярлык создан для Windows: " + desktopPath);
+                LogSystem.info("[OSSettings] Ярлык создан для Windows: " + desktopPath);
             } catch (Exception e) {
-                Logger.error("[OSSettings] Ошибка создания ярлыка Windows: " + e.getMessage());
+                LogSystem.error("[OSSettings] Ошибка создания ярлыка Windows: " + e.getMessage());
             } finally {
                 // Удаляем временный VBS файл
                 tempVbs.delete();
@@ -176,14 +176,14 @@ public class OSSettings {
             File shortcut = new File(desktopPath);
             if (shortcut.exists()) {
                 shortcut.delete();
-                Logger.info("[OSSettings] Ярлык удалён: " + desktopPath);
+                LogSystem.info("[OSSettings] Ярлык удалён: " + desktopPath);
             }
         }
     }
 
     private static void createShortcutMac(String gameName, boolean create) throws IOException {
         String desktopPath = System.getProperty("user.home") + "/Desktop/" + gameName;
-        Logger.info("[OSSettings] Создание ярлыков на macOS требует дополнительной настройки");
+        LogSystem.info("[OSSettings] Создание ярлыков на macOS требует дополнительной настройки");
     }
 
     private static void createShortcutLinux(String gameName, boolean create) throws IOException {
@@ -221,6 +221,6 @@ public class OSSettings {
      */
     public static void setLauncherHideOnGameStart(boolean enabled) {
         // Эта функция требует специальной обработки в GameLauncher
-        Logger.info("[OSSettings] Скрытие лаунчера при запуске игры: " + enabled);
+        LogSystem.info("[OSSettings] Скрытие лаунчера при запуске игры: " + enabled);
     }
 }

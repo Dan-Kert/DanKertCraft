@@ -2,7 +2,7 @@ package md.dankert.dankertcraft.cache;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import md.dankert.dankertcraft.utils.OSHelper;
 import java.io.File;
 import java.io.FileInputStream;
@@ -38,14 +38,14 @@ public class CacheManager {
                 if (age < cacheExpireMs) {
                     String json = Files.readString(versionsFile.toPath());
                     String[] versions = gson.fromJson(json, String[].class);
-                    Logger.info("[Cache] Загружены версии из кэша (" + versions.length + " шт)");
+                    LogSystem.info("[Cache] Загружены версии из кэша (" + versions.length + " шт)");
                     return Arrays.asList(versions);
                 } else {
-                    Logger.info("[Cache] Кэш версий устарел (" + (age / 1000 / 60) + " минут)");
+                    LogSystem.info("[Cache] Кэш версий устарел (" + (age / 1000 / 60) + " минут)");
                 }
             }
         } catch (Exception e) {
-            Logger.error("[Cache] Ошибка при чтении кэша версий: " + e.getMessage());
+            LogSystem.error("[Cache] Ошибка при чтении кэша версий: " + e.getMessage());
         }
         return null;
     }
@@ -55,9 +55,9 @@ public class CacheManager {
             File versionsFile = new File(cacheDir, "versions.json");
             String json = gson.toJson(versions.toArray(new String[0]));
             Files.writeString(versionsFile.toPath(), json);
-            Logger.info("[Cache] Версии сохранены в кэш (" + versions.size() + " шт)");
+            LogSystem.info("[Cache] Версии сохранены в кэш (" + versions.size() + " шт)");
         } catch (Exception e) {
-            Logger.error("[Cache] Ошибка при сохранении кэша версий: " + e.getMessage());
+            LogSystem.error("[Cache] Ошибка при сохранении кэша версий: " + e.getMessage());
         }
     }
 
@@ -69,12 +69,12 @@ public class CacheManager {
                 long age = System.currentTimeMillis() - manifestFile.lastModified();
                 if (age < cacheExpireMs) {
                     String content = Files.readString(manifestFile.toPath());
-                    Logger.info("[Cache] Манифест " + versionId + " загружен из кэша");
+                    LogSystem.info("[Cache] Манифест " + versionId + " загружен из кэша");
                     return content;
                 }
             }
         } catch (Exception e) {
-            Logger.error("[Cache] Ошибка при чтении манифеста из кэша: " + e.getMessage());
+            LogSystem.error("[Cache] Ошибка при чтении манифеста из кэша: " + e.getMessage());
         }
         return null;
     }
@@ -83,9 +83,9 @@ public class CacheManager {
         try {
             File manifestFile = new File(cacheDir, "manifest_" + versionId + ".json");
             Files.writeString(manifestFile.toPath(), manifestJson);
-            Logger.info("[Cache] Манифест " + versionId + " сохранен в кэш");
+            LogSystem.info("[Cache] Манифест " + versionId + " сохранен в кэш");
         } catch (Exception e) {
-            Logger.error("[Cache] Ошибка при сохранении манифеста в кэш: " + e.getMessage());
+            LogSystem.error("[Cache] Ошибка при сохранении манифеста в кэш: " + e.getMessage());
         }
     }
 
@@ -97,7 +97,7 @@ public class CacheManager {
             File[] files = cacheDir.listFiles();
             // ФАЗА 2: NPE защита - listFiles() может вернуть null
             if (files == null) {
-                Logger.error("[Cache] ⚠️  listFiles() вернула null для " + cacheDir.getAbsolutePath());
+                LogSystem.error("[Cache] ⚠️  listFiles() вернула null для " + cacheDir.getAbsolutePath());
                 return;
             }
             
@@ -107,12 +107,12 @@ public class CacheManager {
                     long age = System.currentTimeMillis() - file.lastModified();
                     if (age > cacheExpireMs) {
                         file.delete();
-                        Logger.info("[Cache] Удален устаревший файл: " + file.getName());
+                        LogSystem.info("[Cache] Удален устаревший файл: " + file.getName());
                     }
                 }
             }
         } catch (Exception e) {
-            Logger.error("[Cache] Ошибка при очистке кэша: " + e.getMessage());
+            LogSystem.error("[Cache] Ошибка при очистке кэша: " + e.getMessage());
         }
     }
     
@@ -122,7 +122,7 @@ public class CacheManager {
     public void clearAllCache() {
         try {
             if (!cacheDir.exists()) {
-                Logger.info("[Cache] Папка кэша не существует, нечего очищать");
+                LogSystem.info("[Cache] Папка кэша не существует, нечего очищать");
                 return;
             }
             
@@ -131,15 +131,15 @@ public class CacheManager {
                 for (File file : files) {
                     if (file != null && file.isFile()) {
                         if (file.delete()) {
-                            Logger.info("[Cache] Удален кэш файл: " + file.getName());
+                            LogSystem.info("[Cache] Удален кэш файл: " + file.getName());
                         }
                     }
                 }
             }
             
-            Logger.info("[Cache] ✅ Весь кэш полностью очищен");
+            LogSystem.info("[Cache] ✅ Весь кэш полностью очищен");
         } catch (Exception e) {
-            Logger.error("[Cache] Ошибка при полной очистке кэша: " + e.getMessage());
+            LogSystem.error("[Cache] Ошибка при полной очистке кэша: " + e.getMessage());
         }
     }
     
@@ -161,7 +161,7 @@ public class CacheManager {
             }
             return totalSize;
         } catch (Exception e) {
-            Logger.error("[Cache] Ошибка при расчете размера кэша: " + e.getMessage());
+            LogSystem.error("[Cache] Ошибка при расчете размера кэша: " + e.getMessage());
             return 0;
         }
     }
@@ -179,7 +179,7 @@ public class CacheManager {
             
             return bytesToHex(digest.digest());
         } catch (Exception e) {
-            Logger.error("[FileIntegrity] Ошибка при расчете SHA-1: " + e.getMessage());
+            LogSystem.error("[FileIntegrity] Ошибка при расчете SHA-1: " + e.getMessage());
             return null;
         }
     }

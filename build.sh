@@ -5,11 +5,38 @@ MAIN_CLASS="md.dankert.dankertcraft.Main"
 OUT_DIR="out_build"
 JAR_NAME="$PROJECT_NAME.jar"
 
-# 1. Путь к системному JavaFX в Ubuntu
-JFX_PATH="/usr/share/openjfx/lib"
+# КРОССПЛАТФОРМНЫЙ ПУТЬ К JavaFX
+JFX_PATH=""
+OS_NAME=$(uname -s)
 
-# 2. Путь к твоим библиотекам (GSON)
-# Если gson.jar лежит в libs/, скрипт его найдет
+if [ "$OS_NAME" = "Linux" ]; then
+    # Linux: проверяем стандартные пути
+    if [ -d "/usr/share/openjfx/lib" ]; then
+        JFX_PATH="/usr/share/openjfx/lib"
+    elif [ -d "/opt/openjfx/lib" ]; then
+        JFX_PATH="/opt/openjfx/lib"
+    else
+        echo "⚠️  JavaFX не найден в стандартных путях Linux"
+        echo "Попробуйте установить: sudo apt-get install openjfx libopenjfx-jmod"
+        exit 1
+    fi
+elif [ "$OS_NAME" = "Darwin" ]; then
+    # macOS
+    if [ -d "/opt/local/share/openjfx/lib" ]; then
+        JFX_PATH="/opt/local/share/openjfx/lib"
+    elif [ -d "$HOME/openjfx/lib" ]; then
+        JFX_PATH="$HOME/openjfx/lib"
+    else
+        echo "⚠️  JavaFX не найден на macOS"
+        exit 1
+    fi
+else
+    echo "⚠️  Неподдерживаемая ОС: $OS_NAME"
+    echo "Для Windows используйте build.bat"
+    exit 1
+fi
+
+# 2. Путь к библиотекам (GSON)
 LIBS_PATH="libs/*"
 
 echo "[1/4] Очистка старых файлов..."
@@ -28,7 +55,9 @@ javac --module-path "$JFX_PATH" \
       -d $OUT_DIR @sources.txt
 
 if [ $? -ne 0 ]; then
-    echo "❌ Ошибка компиляции! Проверь, лежит ли GSON в папке libs/"
+    echo "❌ Ошибка компиляции! Проверь:"
+    echo "  - Лежит ли GSON в папке libs/"
+    echo "  - Установлен ли JavaFX в $JFX_PATH"
     rm sources.txt
     exit 1
 fi
@@ -45,4 +74,6 @@ jar --create --file $JAR_NAME --main-class $MAIN_CLASS -C $OUT_DIR .
 
 echo ""
 echo "✅ СБОРКА ЗАВЕРШЕНА: $JAR_NAME"
-echo "Запустить можно командой: java --module-path $JFX_PATH --add-modules javafx.controls,javafx.fxml -jar $JAR_NAME"
+echo ""
+echo "Запустить можно командой:"
+echo "  java --module-path $JFX_PATH --add-modules javafx.controls,javafx.fxml -jar $JAR_NAME"

@@ -3,7 +3,7 @@ package md.dankert.dankertcraft.core;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.utils.Downloader;
 import md.dankert.dankertcraft.cache.CacheManager;
@@ -32,6 +32,9 @@ public class GameInstaller {
         if (os.contains("win")) this.osFamily = "windows";
         else if (os.contains("mac")) this.osFamily = "osx";
         else this.osFamily = "linux";
+        
+        LogSystem.info("[GameInstaller] 🎮 Инициализация для платформы: " + osFamily + 
+                   " (" + System.getProperty("os.name") + ")");
     }
 
     public void setProgressListener(ProgressListener listener) {
@@ -97,7 +100,7 @@ public class GameInstaller {
             
             return ids;
         } catch (Exception e) {
-            Logger.error("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш");
+            LogSystem.error("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш");
             List<String> cached = cacheMgr.getVersionsFromCache();
             if (cached != null) {
                 return cached;
@@ -109,24 +112,34 @@ public class GameInstaller {
     public VersionData setupGame(String version, ProgressListener listener) throws IOException {
         this.listener = listener;
         
+        LogSystem.info("[GameInstaller] 📥 Начало установки Minecraft " + version);
+        
         String versionDir = workDir + File.separator + "versions" + File.separator + version;
         String jsonPath = versionDir + File.separator + version + ".json";
         String jarPath = versionDir + File.separator + version + ".jar";
 
         // 1. Получаем манифест
+        LogSystem.info("[GameInstaller] 📡 Загрузка манифеста версий...");
         String manifestJson = Downloader.downloadToString("https://launchermeta.mojang.com/mc/game/version_manifest.json");
         VersionData.Manifest manifest = gson.fromJson(manifestJson, VersionData.Manifest.class);
 
         VersionData.Manifest.Version selected = manifest.versions.stream()
                 .filter(v -> v.id.equals(version))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException(LanguageStrings.get("error.version.not.found") + " " + version));
+                .orElseThrow(() -> {
+                    LogSystem.error("[GameInstaller] ❌ Версия не найдена: " + version);
+                    return new RuntimeException(LanguageStrings.get("error.version.not.found") + " " + version);
+                });
 
         new File(versionDir).mkdirs();
+        LogSystem.info("[GameInstaller] 📁 Директория версии: " + versionDir);
 
         // 2. Скачиваем JSON версии
         if (!new File(jsonPath).exists()) {
+            LogSystem.info("[GameInstaller] 📥 Загрузка JSON конфига версии...");
             Downloader.downloadFile(selected.url, jsonPath);
+        } else {
+            LogSystem.info("[GameInstaller] ✓ JSON версии уже есть");
         }
 
         VersionData data;
@@ -138,16 +151,25 @@ public class GameInstaller {
         if (data.downloads != null && data.downloads.client != null) {
             File jarFile = new File(jarPath);
             if (needsUpdate(jarFile, data.downloads.client.sha1)) {
-                Logger.info("[Installer] Скачивание клиента: " + version);
+                LogSystem.info("[GameInstaller] 📥 Загрузка JAR клиента (" + 
+                           formatFileSize(data.downloads.client.size) + ")...");
                 Downloader.downloadFile(data.downloads.client.url, jarPath);
+                LogSystem.info("[GameInstaller] ✅ JAR загружен");
+            } else {
+                LogSystem.info("[GameInstaller] ✓ JAR клиента уже есть");
             }
         }
 
         // 4. Библиотеки и Ассеты
+        LogSystem.info("[GameInstaller] 📦 Загрузка библиотек...");
         downloadLibraries(data);
+        
         if (data.assetIndex != null) {
+            LogSystem.info("[GameInstaller] 🎨 Загрузка ассетов (индекс: " + data.assetIndex.id + ")...");
             downloadAssets(data.assetIndex);
         }
+        
+        LogSystem.info("[GameInstaller] ✅ Установка Minecraft " + version + " завершена");
 
         return data;
     }
@@ -156,7 +178,7 @@ public class GameInstaller {
         if (data.libraries == null) return;
 
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        Logger.info("[Installer] Проверка библиотек в 10 потоков...");
+        LogSystem.info("[Installer] Проверка библиотек в 10 потоков...");
 
         // Подсчитываем количество файлов
         int totalFiles = 0;
@@ -204,7 +226,7 @@ public class GameInstaller {
                         reportProgress(LanguageStrings.get("progress.downloading.libs"), currentFile[0], totalFilesCopy);
                     }
                 } catch (IOException e) {
-                    Logger.error("[Installer] Ошибка при загрузке библиотеки " + lib.name + ": " + e.getMessage());
+                    LogSystem.error("[Installer] Ошибка при загрузке библиотеки " + lib.name + ": " + e.getMessage());
                 }
             });
         }
@@ -273,7 +295,7 @@ public class GameInstaller {
         ExecutorService executor = Executors.newFixedThreadPool(15);
         int totalAssets = objects.size();
         final int[] currentAsset = {0};
-        Logger.info("[Installer] Проверка ассетов (" + totalAssets + " файлов). Legacy режим: " + isLegacy);
+        LogSystem.info("[Installer] Проверка ассетов (" + totalAssets + " файлов). Legacy режим: " + isLegacy);
 
         for (Map.Entry<String, JsonElement> entry : objects.entrySet()) {
             String assetName = entry.getKey();
@@ -311,7 +333,7 @@ public class GameInstaller {
                     }
 
                 } catch (Exception e) {
-                    Logger.error("[Installer] Ошибка при загрузке ассета: " + e.getMessage());
+                    LogSystem.error("[Installer] Ошибка при загрузке ассета: " + e.getMessage());
                 }
             });
         }
@@ -337,7 +359,7 @@ public class GameInstaller {
             if (!executor.awaitTermination(30, TimeUnit.MINUTES)) {
                 executor.shutdownNow();
             }
-            Logger.info("[Installer] Загрузка завершена: " + label);
+            LogSystem.info("[Installer] Загрузка завершена: " + label);
         } catch (InterruptedException e) {
             executor.shutdownNow();
             Thread.currentThread().interrupt();
@@ -388,5 +410,16 @@ public class GameInstaller {
         }
 
         return path + ".jar";
+    }
+    
+    /**
+     * Форматирует размер файла в понятный вид (B, KB, MB, GB)
+     */
+    private String formatFileSize(long bytes) {
+        if (bytes == 0) return "0 B";
+        long k = 1024;
+        String[] sizes = {"B", "KB", "MB", "GB"};
+        int i = (int) (Math.log(bytes) / Math.log(k));
+        return String.format("%.2f %s", bytes / Math.pow(k, i), sizes[i]);
     }
 }

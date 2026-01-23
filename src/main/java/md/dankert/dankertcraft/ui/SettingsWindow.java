@@ -10,7 +10,7 @@ import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.config.ConfigManager;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.utils.OSHelper;
 

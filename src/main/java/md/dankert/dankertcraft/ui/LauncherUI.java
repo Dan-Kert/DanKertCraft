@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import com.google.gson.JsonObject;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import com.google.gson.JsonParser;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -86,7 +86,7 @@ public class LauncherUI extends Application {
             String mainCss = getClass().getResource("/styles/main.css").toExternalForm();
             scene.getStylesheets().add(mainCss);
         } catch (Exception e) {
-            Logger.error("CSS файл не найден: " + e.getMessage());
+            LogSystem.error("CSS файл не найден: " + e.getMessage());
         }
 
         // 5. Настройка Stage (Окна)
@@ -105,7 +105,7 @@ public class LauncherUI extends Application {
                 if (fallback != null) primaryStage.getIcons().add(new Image(fallback));
             }
         } catch (Exception e) {
-            Logger.info("Ошибка загрузки иконки: " + e.getMessage());
+            LogSystem.info("Ошибка загрузки иконки: " + e.getMessage());
         }
 
         primaryStage.setScene(scene);

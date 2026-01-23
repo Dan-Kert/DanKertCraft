@@ -8,7 +8,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -94,7 +94,7 @@ public class LogWindow {
             }
         } catch (Exception e) {
             // CSS файл не найден, используем встроенные стили
-            Logger.warn("[LogWindow] CSS файл не найден, используются встроенные стили");
+            LogSystem.warn("[LogWindow] CSS файл не найден, используются встроенные стили");
         }
 
         // Если окно закрыли крестиком, просто скрываем его

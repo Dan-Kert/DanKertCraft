@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.config;
 
 import com.google.gson.Gson;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import com.google.gson.GsonBuilder;
 import md.dankert.dankertcraft.utils.OSHelper;
 import java.io.File;
@@ -44,14 +44,14 @@ public class ConfigManager {
             if (configFile.exists()) {
                 String json = Files.readString(configFile.toPath());
                 config = gson.fromJson(json, Config.class);
-                Logger.info("[Config] Конфиг загружен: " + config.username);
+                LogSystem.info("[Config] Конфиг загружен: " + config.username);
             } else {
                 config = new Config();
                 saveConfig();
-                Logger.info("[Config] Создан новый конфиг");
+                LogSystem.info("[Config] Создан новый конфиг");
             }
         } catch (Exception e) {
-            Logger.error("[Config] Ошибка при загрузке: " + e.getMessage());
+            LogSystem.error("[Config] Ошибка при загрузке: " + e.getMessage());
             config = new Config();
         }
     }
@@ -61,9 +61,9 @@ public class ConfigManager {
             File cfParent = configFile.getParentFile(); if (cfParent != null) cfParent.mkdirs();
             String json = gson.toJson(config);
             Files.writeString(configFile.toPath(), json);
-            Logger.info("[Config] Конфиг сохранен");
+            LogSystem.info("[Config] Конфиг сохранен");
         } catch (Exception e) {
-            Logger.error("[Config] Ошибка при сохранении: " + e.getMessage());
+            LogSystem.error("[Config] Ошибка при сохранении: " + e.getMessage());
         }
     }
 

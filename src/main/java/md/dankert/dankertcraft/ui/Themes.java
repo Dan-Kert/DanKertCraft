@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import javafx.scene.Scene;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 
 /**
  * ЕДИНСТВЕННЫЙ файл со ВСЕМИ стилями приложения DanKertCraft Launcher.
@@ -148,7 +148,7 @@ public class Themes {
         // Заменяем пробелы на %20 для корректной работы Data URL в JavaFX
         String css = buildThemeCSS().replace(" ", "%20");
         scene.getStylesheets().add("data:text/css," + css);
-        Logger.info("[Themes] Тема интерфейса успешно применена");
+        LogSystem.info("[Themes] Тема интерфейса успешно применена");
     }
 
     // Alias для обратной совместимости

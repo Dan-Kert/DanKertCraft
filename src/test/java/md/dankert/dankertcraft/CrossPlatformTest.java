@@ -26,7 +26,7 @@ public class CrossPlatformTest {
             "║    Эмуляция Windows, Linux, macOS                           ║\n" +
             "╚══════════════════════════════════════════════════════════════╝\n");
         
-        Logger.info("[TestSuite] 📋 Начало тестирования...");
+        LogSystem.info("[TestSuite] 📋 Начало тестирования...");
         
         try {
             // Тест 1: PlatformHelper
@@ -53,7 +53,7 @@ public class CrossPlatformTest {
             // Финальный отчет
             printTestReport();
         } catch (Exception e) {
-            Logger.error("[TestSuite] Критическая ошибка при тестировании", e);
+            LogSystem.error("[TestSuite] Критическая ошибка при тестировании", e);
             failedTests++;
             printTestReport();
         }
@@ -63,13 +63,13 @@ public class CrossPlatformTest {
      * Тест 1: PlatformHelper - определение платформы и расширений
      */
     private static void testPlatformHelper() {
-        Logger.info("[Test 1] 🔧 Тестирование PlatformHelper (определение платформы)...");
+        LogSystem.info("[Test 1] 🔧 Тестирование PlatformHelper (определение платформы)...");
         
         try {
             // Тест текущей ОС
             PlatformHelper.OS currentOS = PlatformHelper.getCurrentOS();
             assertTrue("Определение текущей ОС", currentOS != null);
-            Logger.info("[PlatformHelper] ✓ Текущая ОС: " + currentOS.name);
+            LogSystem.info("[PlatformHelper] ✓ Текущая ОС: " + currentOS.name);
             
             // Тест расширений библиотек для каждой ОС
             PlatformHelper.OS[] osArray = {
@@ -81,7 +81,7 @@ public class CrossPlatformTest {
             for (PlatformHelper.OS os : osArray) {
                 String ext = os.libExtension;
                 assertTrue("Расширение для " + os.name, !ext.isEmpty());
-                Logger.info("[PlatformHelper] ✓ " + os.name + " → " + ext);
+                LogSystem.info("[PlatformHelper] ✓ " + os.name + " → " + ext);
             }
             
             // Проверка правильных расширений
@@ -99,20 +99,20 @@ public class CrossPlatformTest {
      * Тест 2: Logger функциональность
      */
     private static void testLogger() {
-        Logger.info("[Test 2] 📋 Тестирование Logger (логирование)...");
+        LogSystem.info("[Test 2] 📋 Тестирование Logger (логирование)...");
         
         try {
             // Тест разных уровней логирования
-            Logger.info("[Logger] INFO уровень работает ✓");
-            Logger.warn("[Logger] WARN уровень работает ✓");
-            Logger.error("[Logger] ERROR уровень работает ✓");
-            Logger.debug("[Logger] DEBUG уровень работает ✓");
+            LogSystem.info("[Logger] INFO уровень работает ✓");
+            LogSystem.warn("[Logger] WARN уровень работает ✓");
+            LogSystem.error("[Logger] ERROR уровень работает ✓");
+            LogSystem.debug("[Logger] DEBUG уровень работает ✓");
             
             // Тест логирования с исключением
             try {
                 throw new RuntimeException("Тестовое исключение для проверки");
             } catch (Exception e) {
-                Logger.error("[Logger] Обработка ошибки с stacktrace", e);
+                LogSystem.error("[Logger] Обработка ошибки с stacktrace", e);
             }
             
             passTest("Logger: все уровни логирования");
@@ -125,7 +125,7 @@ public class CrossPlatformTest {
      * Тест 3: File операции и NPE защита
      */
     private static void testFileOperations() {
-        Logger.info("[Test 3] 📁 Тестирование File операций (NPE защита)...");
+        LogSystem.info("[Test 3] 📁 Тестирование File операций (NPE защита)...");
         
         try {
             String testDir = System.getProperty("java.io.tmpdir") + File.separator + "dankertcraft_test_npe";
@@ -136,18 +136,18 @@ public class CrossPlatformTest {
             File testFile = new File(testDir, "test.txt");
             File parentDir = testFile.getParentFile();
             assertTrue("getParentFile не null", parentDir != null);
-            Logger.info("[FileOps] ✓ getParentFile работает безопасно");
+            LogSystem.info("[FileOps] ✓ getParentFile работает безопасно");
             
             // Тест listFiles() NPE защита
             File[] files = dir.listFiles();
             assertTrue("listFiles не null для валидной директории", files != null);
-            Logger.info("[FileOps] ✓ listFiles возвращает валидный результат");
+            LogSystem.info("[FileOps] ✓ listFiles возвращает валидный результат");
             
             // Тест с несуществующей директорией
             File nonExistentDir = new File("/nonexistent/path/dankertcraft_12345");
             File[] nonExistentFiles = nonExistentDir.listFiles();
             if (nonExistentFiles == null) {
-                Logger.info("[FileOps] ✓ listFiles() корректно возвращает null для несуществующей директории");
+                LogSystem.info("[FileOps] ✓ listFiles() корректно возвращает null для несуществующей директории");
             }
             
             // Очистка
@@ -164,7 +164,7 @@ public class CrossPlatformTest {
      * Тест 4: CacheManager с NPE защитой
      */
     private static void testCacheManager() {
-        Logger.info("[Test 4] 💾 Тестирование CacheManager (NPE защита)...");
+        LogSystem.info("[Test 4] 💾 Тестирование CacheManager (NPE защита)...");
         
         try {
             CacheManager cacheMgr = CacheManager.getInstance();
@@ -172,12 +172,12 @@ public class CrossPlatformTest {
             // Тест сохранения в кэш
             List<String> testVersions = Arrays.asList("1.20.1", "1.19.2", "1.18.2");
             cacheMgr.saveVersionsToCache(testVersions);
-            Logger.info("[CacheManager] ✓ Версии сохранены в кэш");
+            LogSystem.info("[CacheManager] ✓ Версии сохранены в кэш");
             
             // Тест чтения из кэша
             List<String> cachedVersions = cacheMgr.getVersionsFromCache();
             if (cachedVersions != null && !cachedVersions.isEmpty()) {
-                Logger.info("[CacheManager] ✓ Прочитано " + cachedVersions.size() + " версий из кэша");
+                LogSystem.info("[CacheManager] ✓ Прочитано " + cachedVersions.size() + " версий из кэша");
             }
             
             passTest("CacheManager: работает с NPE защитой");
@@ -190,30 +190,30 @@ public class CrossPlatformTest {
      * Тест 5: OSHelper - кросс-платформенные операции
      */
     private static void testOSHelper() {
-        Logger.info("[Test 5] 🖥️  Тестирование OSHelper (кросс-платформенность)...");
+        LogSystem.info("[Test 5] 🖥️  Тестирование OSHelper (кросс-платформенность)...");
         
         try {
             // Тест определения разделителя пути
             String separator = File.separator;
             assertTrue("File separator defined", !separator.isEmpty());
-            Logger.info("[OSHelper] ✓ File separator: '" + separator + "'");
+            LogSystem.info("[OSHelper] ✓ File separator: '" + separator + "'");
             
             // Тест создания и удаления директории
             String testPath = System.getProperty("java.io.tmpdir") + File.separator + "oshelper_test_npe";
             File testDir = new File(testPath);
             testDir.mkdirs();
             assertTrue("Директория создана", testDir.exists());
-            Logger.info("[OSHelper] ✓ Директория успешно создана");
+            LogSystem.info("[OSHelper] ✓ Директория успешно создана");
             
             // Тест deleteDirectory с NPE защитой
             OSHelper.deleteDirectory(testDir);
             assertTrue("Директория удалена OSHelper", !testDir.exists());
-            Logger.info("[OSHelper] ✓ deleteDirectory работает безопасно");
+            LogSystem.info("[OSHelper] ✓ deleteDirectory работает безопасно");
             
             // Тест получения системных свойств
             String osName = System.getProperty("os.name");
             String osArch = System.getProperty("os.arch");
-            Logger.info("[OSHelper] ✓ ОС: " + osName + " (" + osArch + ")");
+            LogSystem.info("[OSHelper] ✓ ОС: " + osName + " (" + osArch + ")");
             
             passTest("OSHelper: все операции работают");
         } catch (Exception e) {
@@ -225,7 +225,7 @@ public class CrossPlatformTest {
      * Тест 6: Эмуляция разных ОС
      */
     private static void testOSEmulation() {
-        Logger.warn("[Test 6] 🌍 Эмуляция разных операционных систем...");
+        LogSystem.warn("[Test 6] 🌍 Эмуляция разных операционных систем...");
         
         String[] osNames = {"Windows 10", "Windows 11", "Linux", "Ubuntu", "Debian", "macOS", "Mac OS X"};
         
@@ -242,14 +242,14 @@ public class CrossPlatformTest {
                 }
                 
                 // Выводим информацию
-                Logger.info("[OSEmulation] ✓ " + osName + 
+                LogSystem.info("[OSEmulation] ✓ " + osName + 
                         " → " + osType.name + 
                         " (lib ext: " + osType.libExtension + 
                         ", exe: " + osType.javaExecutable + ")");
                 
                 passTest("OS эмуляция: " + osName);
             } catch (Exception e) {
-                Logger.error("[OSEmulation] Ошибка при эмуляции " + osName, e);
+                LogSystem.error("[OSEmulation] Ошибка при эмуляции " + osName, e);
             }
         }
     }
@@ -258,28 +258,28 @@ public class CrossPlatformTest {
      * Тест 7: Интеграционное тестирование
      */
     private static void testIntegration() {
-        Logger.warn("[Test 7] 🔗 Интеграционное тестирование компонентов...");
+        LogSystem.warn("[Test 7] 🔗 Интеграционное тестирование компонентов...");
         
         try {
             // 1. PlatformHelper определяет ОС
             PlatformHelper.OS os = PlatformHelper.getCurrentOS();
-            Logger.info("[Integration] Шаг 1: Определена ОС - " + os.name);
+            LogSystem.info("[Integration] Шаг 1: Определена ОС - " + os.name);
             
             // 2. На основе ОС выбираются библиотеки
             String libExt = os.libExtension;
-            Logger.info("[Integration] Шаг 2: Расширение библиотеки - " + libExt);
+            LogSystem.info("[Integration] Шаг 2: Расширение библиотеки - " + libExt);
             
             // 3. CacheManager кэширует версии
             List<String> versions = Arrays.asList("1.20", "1.19", "1.18");
             CacheManager.getInstance().saveVersionsToCache(versions);
-            Logger.info("[Integration] Шаг 3: Версии закэшированы (" + versions.size() + " версий)");
+            LogSystem.info("[Integration] Шаг 3: Версии закэшированы (" + versions.size() + " версий)");
             
             // 4. Logger логирует всё
-            Logger.info("[Integration] Шаг 4: Логирование активировано ✓");
+            LogSystem.info("[Integration] Шаг 4: Логирование активировано ✓");
             
             // 5. Проверяем кросс-платформенные пути
             String javaExe = os.javaExecutable;
-            Logger.info("[Integration] Шаг 5: Java исполняемый файл - " + javaExe);
+            LogSystem.info("[Integration] Шаг 5: Java исполняемый файл - " + javaExe);
             
             passTest("Интеграционное тестирование");
         } catch (Exception e) {
@@ -297,12 +297,12 @@ public class CrossPlatformTest {
     
     private static void passTest(String testName) {
         passedTests++;
-        Logger.info("[✓] PASSED: " + testName);
+        LogSystem.info("[✓] PASSED: " + testName);
     }
     
     private static void failTest(String testName, Exception e) {
         failedTests++;
-        Logger.error("[✗] FAILED: " + testName, e);
+        LogSystem.error("[✗] FAILED: " + testName, e);
     }
     
     private static void printTestReport() {

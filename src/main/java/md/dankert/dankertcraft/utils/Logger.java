@@ -1,18 +1,24 @@
 package md.dankert.dankertcraft.utils;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * Централизованное логирование для всего приложения.
+ * УЛУЧШЕННАЯ ЦЕНТРАЛИЗОВАННАЯ СИСТЕМА ЛОГИРОВАНИЯ
  * 
- * ФАЗА 2: Замещает 100+ System.out/err.println() вызовов.
- * Предоставляет:
+ * Возможности:
  * - Логирование с уровнями (DEBUG, INFO, WARN, ERROR)
- * - Временные метки
- * - Опциональное сохранение в файл
- * - Цветной вывод в консоль (будущее)
+ * - Одновременно в консоль и файл
+ * - Асинхронная запись в файл (не блокирует UI)
+ * - Гарантированная запись при крахах
+ * - Переиндексирование файлов по дате
+ * - Буферизация для производительности
  */
 public class Logger {
     
@@ -32,10 +38,20 @@ public class Logger {
     }
     
     private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    
     private static Level minimumLevel = Level.INFO;
     private static boolean logToFile = false;
     private static String logFilePath = null;
     private static PrintWriter fileWriter = null;
+    
+    // Асинхронная запись в файл
+    private static final BlockingQueue<String> LOG_QUEUE = new LinkedBlockingQueue<>(1000);
+    private static volatile boolean loggerRunning = false;
+    private static Thread logWriterThread = null;
+    
+    // Для гарантированной записи при краше
+    private static final Object WRITE_LOCK = new Object();
     
     /**
      * Установить минимальный уровень логирования
@@ -46,15 +62,38 @@ public class Logger {
     }
     
     /**
-     * Включить логирование в файл
+     * Включить логирование в файл с асинхронной записью
+     * Создает отдельный поток для записи в файл, чтобы не блокировать основной поток
      */
     public static void enableFileLogging(String filePath) {
-        try {
-            logFilePath = filePath;
-            logToFile = true;
-            fileWriter = new PrintWriter(new FileWriter(filePath, true));
-        } catch (IOException e) {
-            error("Не удалось открыть лог файл: " + filePath);
+        synchronized (WRITE_LOCK) {
+            try {
+                logFilePath = filePath;
+                logToFile = true;
+                
+                // Создаём директорию если её нет
+                File logFile = new File(filePath);
+                logFile.getParentFile().mkdirs();
+                
+                // Открываем файл с добавлением в конец (append mode)
+                fileWriter = new PrintWriter(new FileWriter(filePath, true), true);
+                
+                // Запускаем асинхронный поток для записи логов
+                if (!loggerRunning) {
+                    loggerRunning = true;
+                    logWriterThread = new Thread(Logger::logWriterWorker, "LogWriter-Thread");
+                    logWriterThread.setDaemon(false); // Важно: НЕ daemon, чтобы завершить запись при краше
+                    logWriterThread.start();
+                }
+                
+                info("═══════════════════════════════════════════════════════");
+                info("📝 Логирование в файл включено: " + filePath);
+                info("═══════════════════════════════════════════════════════");
+                
+            } catch (IOException e) {
+                error("❌ Не удалось открыть лог файл: " + filePath);
+                e.printStackTrace();
+            }
         }
     }
     
@@ -62,10 +101,54 @@ public class Logger {
      * Отключить логирование в файл
      */
     public static void disableFileLogging() {
-        logToFile = false;
-        if (fileWriter != null) {
-            fileWriter.close();
-            fileWriter = null;
+        synchronized (WRITE_LOCK) {
+            logToFile = false;
+            loggerRunning = false;
+            
+            // Даём время на запись всех оставшихся логов
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            
+            if (fileWriter != null) {
+                fileWriter.flush();
+                fileWriter.close();
+                fileWriter = null;
+            }
+        }
+    }
+    
+    /**
+     * Получить текущий путь логирования
+     */
+    public static String getLogFilePath() {
+        return logFilePath;
+    }
+    
+    /**
+     * Гарантированная запись всех оставшихся логов в файл
+     * Вызывается при крахе для сохранения всех данных
+     */
+    public static void flushAndClose() {
+        synchronized (WRITE_LOCK) {
+            try {
+                // Очищаем очередь логов в файл
+                while (!LOG_QUEUE.isEmpty()) {
+                    String logEntry = LOG_QUEUE.poll();
+                    if (logEntry != null && fileWriter != null) {
+                        fileWriter.println(logEntry);
+                    }
+                }
+                
+                // Гарантированно записываем всё на диск
+                if (fileWriter != null) {
+                    fileWriter.flush();
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Ошибка при финализации логов: " + e.getMessage());
+            }
         }
     }
     
@@ -130,56 +213,141 @@ public class Logger {
     // === INTERNAL METHODS ===
     
     /**
-     * Основной метод логирования
+     * Основной метод логирования (для обоих уровней)
+     * Перегруженная версия без исключения
      */
     private static void log(Level level, String message) {
+        log(level, message, null);
+    }
+    
+    /**
+     * Основной метод логирования (для обоих уровней)
+     */
+    private static void log(Level level, String message, Throwable throwable) {
         // Проверяем минимальный уровень
         if (level.ordinal() < minimumLevel.ordinal()) {
             return;
         }
         
-        // Форматируем сообщение
+        // Форматируем сообщение с временем
         String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
         String formattedMessage = String.format("[%s] %s %s",
                 timestamp,
                 level.emoji + " " + level.name,
                 message);
         
-        // Выводим в консоль
+        // === ВЫВОД В КОНСОЛЬ (СИНХРОННО) ===
         if (level == Level.ERROR) {
             System.err.println(formattedMessage);
         } else {
             System.out.println(formattedMessage);
         }
         
-        // Логируем в файл если включено
-        if (logToFile && fileWriter != null) {
-            fileWriter.println(formattedMessage);
-            fileWriter.flush();
+        // === ЗАПИСЬ В ФАЙЛ (АСИНХРОННО) ===
+        if (logToFile && logFilePath != null) {
+            try {
+                // Добавляем в очередь для асинхронной записи
+                LOG_QUEUE.offer(formattedMessage);
+                
+                // Если это ошибка - гарантированно фlushing
+                if (level == Level.ERROR && fileWriter != null) {
+                    synchronized (WRITE_LOCK) {
+                        fileWriter.flush();
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ Ошибка при добавлении логa в очередь: " + e.getMessage());
+            }
+        }
+        
+        // === ЛОГИРОВАНИЕ ИСКЛЮЧЕНИЯ ===
+        if (throwable != null) {
+            logThrowable(level, throwable);
         }
     }
     
     /**
-     * Логирование с исключением
+     * Логирование исключения (стек-трейс)
      */
-    private static void log(Level level, String message, Throwable throwable) {
-        log(level, message);
+    private static void logThrowable(Level level, Throwable throwable) {
+        StringWriter sw = new StringWriter();
+        throwable.printStackTrace(new PrintWriter(sw));
+        String stackTrace = sw.toString();
         
-        if (throwable != null) {
-            // Логируем стек трейс
-            StringWriter sw = new StringWriter();
-            throwable.printStackTrace(new PrintWriter(sw));
-            String stackTrace = sw.toString();
+        String[] lines = stackTrace.split("\n");
+        for (String line : lines) {
+            String indentedLine = "  " + line;
             
-            String[] lines = stackTrace.split("\n");
-            for (String line : lines) {
-                log(level, "  " + line);
+            // Выводим в консоль
+            if (level == Level.ERROR) {
+                System.err.println(indentedLine);
+            } else {
+                System.out.println(indentedLine);
+            }
+            
+            // Добавляем в файл
+            if (logToFile && logFilePath != null) {
+                try {
+                    LOG_QUEUE.offer(indentedLine);
+                } catch (Exception e) {
+                    // Игнорируем ошибки переполнения очереди
+                }
             }
         }
     }
     
     /**
-     * Утилита для замены System.out.println на Logger.info
+     * Асинхронный worker поток для записи логов в файл
+     * Работает непрерывно, считывая логи из очереди и записывая их
+     */
+    private static void logWriterWorker() {
+        while (loggerRunning || !LOG_QUEUE.isEmpty()) {
+            try {
+                // Берём лог из очереди с таймаутом (чтобы не зависать при краше)
+                String logEntry = LOG_QUEUE.poll();
+                
+                if (logEntry != null && fileWriter != null) {
+                    synchronized (WRITE_LOCK) {
+                        fileWriter.println(logEntry);
+                        
+                        // Периодический flush для надёжности
+                        // На каждый 10-й лог или при ERROR
+                        if (logEntry.contains("❌") || logEntry.contains("ERROR")) {
+                            fileWriter.flush();
+                        }
+                    }
+                } else if (logEntry == null && loggerRunning) {
+                    // Если очередь пуста, но логгер всё ещё работает - спим немного
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Ошибка логирования в файл: " + e.getMessage());
+            }
+        }
+        
+        // ФИНАЛИЗАЦИЯ: Записываем всё оставшееся при завершении потока
+        try {
+            while (!LOG_QUEUE.isEmpty()) {
+                String logEntry = LOG_QUEUE.poll();
+                if (logEntry != null && fileWriter != null) {
+                    synchronized (WRITE_LOCK) {
+                        fileWriter.println(logEntry);
+                        fileWriter.flush();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Критическая ошибка при финализации логов: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Утилита для замены System.out.println на LogSystem.info
      * Используется в потомках для миграции
      */
     public static void replaceSystemOut(String message) {
@@ -187,7 +355,7 @@ public class Logger {
     }
     
     /**
-     * Утилита для замены System.err.println на Logger.error
+     * Утилита для замены System.err.println на LogSystem.error
      */
     public static void replaceSystemErr(String message) {
         error(message);

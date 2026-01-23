@@ -38,7 +38,7 @@ public class OSHelper {
     public static void openFolder(File folder) {
         if (!folder.exists()) {
             if (!folder.mkdirs()) {
-                Logger.error("Не удалось создать папку: " + folder.getAbsolutePath());
+                LogSystem.error("Не удалось создать папку: " + folder.getAbsolutePath());
                 return;
             }
         }
@@ -60,10 +60,10 @@ public class OSHelper {
                         }
                     }
                 }
-                Logger.info("Команда открытия отправлена для: " + path);
+                LogSystem.info("Команда открытия отправлена для: " + path);
             } catch (Exception e) {
                 e.printStackTrace();
-                Logger.error("Критическая ошибка открытия папки: " + e.getMessage());
+                LogSystem.error("Критическая ошибка открытия папки: " + e.getMessage());
             }
         }).start();
     }

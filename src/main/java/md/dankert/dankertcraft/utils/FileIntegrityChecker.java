@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.utils;
 
 import java.io.File;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.MessageDigest;
@@ -36,7 +36,7 @@ public class FileIntegrityChecker {
                 String actualHash = calculateSHA1(file);
                 return actualHash.equalsIgnoreCase(expectedHash);
             } catch (IOException e) {
-                Logger.error("[FileIntegrityChecker] Ошибка при расчете хеша: " + e.getMessage());
+                LogSystem.error("[FileIntegrityChecker] Ошибка при расчете хеша: " + e.getMessage());
                 return false;
             }
         }

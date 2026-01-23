@@ -5,7 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import md.dankert.dankertcraft.platform.PlatformHelper;
 import md.dankert.dankertcraft.utils.FileDownloadHelper;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.*;
 import java.nio.file.Files;
@@ -258,6 +258,6 @@ public class JavaRuntimeManager {
      * Внутреннее логирование
      */
     private void log(String message) {
-        Logger.info("[JavaRuntimeManager] " + message);
+        LogSystem.info("[JavaRuntimeManager] " + message);
     }
 }

@@ -14,7 +14,7 @@ import javafx.stage.Stage;
 import md.dankert.dankertcraft.core.FabricManager;
 import md.dankert.dankertcraft.core.GameInstaller;
 import md.dankert.dankertcraft.core.VanillaManager;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import md.dankert.dankertcraft.utils.OSHelper;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 
@@ -294,7 +294,7 @@ public class InstallWindow {
             };
             launcherUI.getDownloadStatusBar().start(LanguageStrings.get("install") + ": " + name, task);
             new Thread(task).start();
-        } catch (Exception ex) { Logger.error(ex.getMessage()); }
+        } catch (Exception ex) { LogSystem.error(ex.getMessage()); }
     }
 
     private void updateIconPreview(String fileName) {

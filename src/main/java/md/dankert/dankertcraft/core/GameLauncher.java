@@ -2,7 +2,7 @@ package md.dankert.dankertcraft.core;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import md.dankert.dankertcraft.utils.Logger;
+import md.dankert.dankertcraft.utils.LogSystem;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,7 +34,7 @@ public class GameLauncher {
             // Читаем выбранную версию Java из конфига
             if (json.has("javaPath")) {
                 javaVersion = json.get("javaPath").getAsString();
-                Logger.info("[GameLauncher] 🔧 Версия Java из конфига: " + javaVersion);
+                LogSystem.info("[GameLauncher] 🔧 Версия Java из конфига: " + javaVersion);
             }
         } else {
             mcVersion = instanceName.split("-")[0];
@@ -50,13 +50,13 @@ public class GameLauncher {
         try {
             vanillaData = vanilla.prepare(mcVersion, listener);
         } catch (Exception e) {
-            Logger.error("[GameLauncher] Не удалось загрузить файлы: " + e.getMessage());
+            LogSystem.error("[GameLauncher] Не удалось загрузить файлы: " + e.getMessage());
             // Пытаемся использовать локальные файлы если они есть
             File jsonFile = new File(workDir, "versions/" + mcVersion + "/" + mcVersion + ".json");
             if (jsonFile.exists()) {
                 try (java.io.Reader reader = new java.io.FileReader(jsonFile)) {
                     vanillaData = gson.fromJson(reader, VersionData.class);
-                    Logger.info("[GameLauncher] Используем локальные файлы для " + mcVersion);
+                    LogSystem.info("[GameLauncher] Используем локальные файлы для " + mcVersion);
                 }
             } else {
                 // Если даже локальных файлов нет, выбросим исключение
@@ -72,19 +72,19 @@ public class GameLauncher {
             } else {
                 javaExec = vanilla.setupJavaRuntime(mcVersion, listener);
             }
-            Logger.info("[GameLauncher] Java найдена: " + javaExec);
+            LogSystem.info("[GameLauncher] Java найдена: " + javaExec);
             // Проверяем существование Java
             File javaFile = new File(javaExec);
             if (!javaFile.exists()) {
-                Logger.error("[GameLauncher] ⚠️  Файл Java не существует: " + javaExec);
+                LogSystem.error("[GameLauncher] ⚠️  Файл Java не существует: " + javaExec);
                 javaExec = "java";
             } else {
-                Logger.info("[GameLauncher] ✓ Файл Java существует, размер: " + javaFile.length() + " bytes");
+                LogSystem.info("[GameLauncher] ✓ Файл Java существует, размер: " + javaFile.length() + " bytes");
             }
         } catch (Exception e) {
-            Logger.error("[GameLauncher] ❌ Не удалось настроить Java: " + e.getMessage());
+            LogSystem.error("[GameLauncher] ❌ Не удалось настроить Java: " + e.getMessage());
             e.printStackTrace();
-            Logger.info("[GameLauncher] Попытаемся использовать системную Java...");
+            LogSystem.info("[GameLauncher] Попытаемся использовать системную Java...");
             javaExec = "java"; // Пытаемся использовать системную Java
         }
 
@@ -177,28 +177,28 @@ public class GameLauncher {
         pb.directory(instanceDir);
 
         // Логирование команды запуска
-        Logger.info("[GameLauncher] ═══════════════════════════════════════════════════════");
-        Logger.info("[GameLauncher] 📋 КОМАНДА ЗАПУСКА:");
+        LogSystem.info("[GameLauncher] ═══════════════════════════════════════════════════════");
+        LogSystem.info("[GameLauncher] 📋 КОМАНДА ЗАПУСКА:");
         for (int i = 0; i < cmd.size(); i++) {
-            Logger.info("[GameLauncher]   [" + i + "] " + cmd.get(i));
+            LogSystem.info("[GameLauncher]   [" + i + "] " + cmd.get(i));
         }
-        Logger.info("[GameLauncher] ═══════════════════════════════════════════════════════");
+        LogSystem.info("[GameLauncher] ═══════════════════════════════════════════════════════");
 
         // Логирование Classpath
-        Logger.info("[GameLauncher] 📚 CLASSPATH:");
+        LogSystem.info("[GameLauncher] 📚 CLASSPATH:");
         for (String cp : fullClasspath) {
             File cpFile = new File(cp);
             String status = cpFile.exists() ? "✓" : "✗";
-            Logger.info("[GameLauncher]   " + status + " " + cp);
+            LogSystem.info("[GameLauncher]   " + status + " " + cp);
         }
-        Logger.info("[GameLauncher] ═══════════════════════════════════════════════════════");
+        LogSystem.info("[GameLauncher] ═══════════════════════════════════════════════════════");
 
         // Логирование переменных окружения
-        Logger.info("[GameLauncher] 🔧 ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ:");
-        Logger.info("[GameLauncher]   Java версия: " + System.getProperty("java.version"));
-        Logger.info("[GameLauncher]   Java путь: " + System.getProperty("java.home"));
-        Logger.info("[GameLauncher]   ОС: " + System.getProperty("os.name"));
-        Logger.info("[GameLauncher]   Архитектура: " + System.getProperty("os.arch"));
+        LogSystem.info("[GameLauncher] 🔧 ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ:");
+        LogSystem.info("[GameLauncher]   Java версия: " + System.getProperty("java.version"));
+        LogSystem.info("[GameLauncher]   Java путь: " + System.getProperty("java.home"));
+        LogSystem.info("[GameLauncher]   ОС: " + System.getProperty("os.name"));
+        LogSystem.info("[GameLauncher]   Архитектура: " + System.getProperty("os.arch"));
 
 
         // Диагностика отключена - все ошибки будут видны в выводе процесса
@@ -216,33 +216,33 @@ public class GameLauncher {
             if (!javaExec.equals("java") && !javaExec.equals("java.exe")) {
                 javaLibDir = new File(javaExec).getParentFile().getParent() + File.separator + "lib";
                 fullLdLibraryPath = nativesPath + ":" + javaLibDir + ":" + systemLibs;
-                Logger.info("[GameLauncher] 📦 Java lib dir: " + javaLibDir);
+                LogSystem.info("[GameLauncher] 📦 Java lib dir: " + javaLibDir);
                 
                 // ВОССТАНОВЛЕНИЕ: если критические библиотеки отсутствуют, пытаемся восстановить
-                Logger.info("[GameLauncher] 🔧 Проверка критических библиотек Java...");
+                LogSystem.info("[GameLauncher] 🔧 Проверка критических библиотек Java...");
                 if (!FallbackJavaResolver.ensureRequiredLibs(javaLibDir)) {
-                    Logger.info("[GameLauncher] ⚠ Некоторые библиотеки не удалось восстановить");
+                    LogSystem.info("[GameLauncher] ⚠ Некоторые библиотеки не удалось восстановить");
                 }
                 
                 // ДИАГНОСТИКА: проверяем наличие libji.so
                 File javaLibFile = new File(javaLibDir);
                 if (javaLibFile.exists()) {
-                    Logger.info("[GameLauncher] ✓ Java lib директория существует");
+                    LogSystem.info("[GameLauncher] ✓ Java lib директория существует");
                     
                     // Проверяем jvm.cfg
                     File jvmCfg = new File(javaLibDir, "jvm.cfg");
                     if (jvmCfg.exists()) {
-                        Logger.info("[GameLauncher] ✓ jvm.cfg найден");
+                        LogSystem.info("[GameLauncher] ✓ jvm.cfg найден");
                     } else {
-                        Logger.info("[GameLauncher] ✗ jvm.cfg НЕ НАЙДЕН!");
+                        LogSystem.info("[GameLauncher] ✗ jvm.cfg НЕ НАЙДЕН!");
                     }
                     
                     File[] libFiles = javaLibFile.listFiles();
                     if (libFiles != null) {
-                        Logger.info("[GameLauncher] 📋 Файлы в lib директории (" + libFiles.length + " всего):");
+                        LogSystem.info("[GameLauncher] 📋 Файлы в lib директории (" + libFiles.length + " всего):");
                         for (File libFile : libFiles) {
                             if (libFile.isFile() && (libFile.getName().endsWith(".so") || libFile.getName().contains("jli") || libFile.getName().contains("java") || libFile.getName().equals("jvm.cfg"))) {
-                                Logger.info("[GameLauncher]   - " + libFile.getName());
+                                LogSystem.info("[GameLauncher]   - " + libFile.getName());
                             }
                         }
                         
@@ -251,52 +251,52 @@ public class GameLauncher {
                         for (String libName : requiredLibs) {
                             File lib = new File(javaLibDir, libName);
                             if (lib.exists()) {
-                                Logger.info("[GameLauncher] ✓ " + libName + " найден");
+                                LogSystem.info("[GameLauncher] ✓ " + libName + " найден");
                             } else {
-                                Logger.info("[GameLauncher] ✗ ОШИБКА: " + libName + " НЕ НАЙДЕН!");
+                                LogSystem.info("[GameLauncher] ✗ ОШИБКА: " + libName + " НЕ НАЙДЕН!");
                             }
                         }
                         
                         // Проверяем server/ директорию
                         File serverDir = new File(javaLibDir, "server");
                         if (serverDir.exists()) {
-                            Logger.info("[GameLauncher] ✓ server/ директория найдена");
+                            LogSystem.info("[GameLauncher] ✓ server/ директория найдена");
                             File[] serverFiles = serverDir.listFiles();
                             if (serverFiles != null) {
-                                Logger.info("[GameLauncher]   Файлы в server/ (" + serverFiles.length + " всего):");
+                                LogSystem.info("[GameLauncher]   Файлы в server/ (" + serverFiles.length + " всего):");
                                 for (File sf : serverFiles) {
                                     if (sf.isFile() && sf.getName().endsWith(".so")) {
-                                        Logger.info("[GameLauncher]     - " + sf.getName());
+                                        LogSystem.info("[GameLauncher]     - " + sf.getName());
                                     }
                                 }
                             }
                         } else {
-                            Logger.info("[GameLauncher] ✗ ОШИБКА: server/ директория НЕ НАЙДЕНА!");
+                            LogSystem.info("[GameLauncher] ✗ ОШИБКА: server/ директория НЕ НАЙДЕНА!");
                         }
                     }
                 } else {
-                    Logger.info("[GameLauncher] ✗ ОШИБКА: Java lib директория НЕ НАЙДЕНА: " + javaLibDir);
+                    LogSystem.info("[GameLauncher] ✗ ОШИБКА: Java lib директория НЕ НАЙДЕНА: " + javaLibDir);
                 }
             }
             
             pb.environment().put("LD_LIBRARY_PATH", fullLdLibraryPath);
-            Logger.info("[GameLauncher] 📦 LD_LIBRARY_PATH: " + fullLdLibraryPath);
+            LogSystem.info("[GameLauncher] 📦 LD_LIBRARY_PATH: " + fullLdLibraryPath);
             
             pb.environment().put("ALSOFT_DRIVERS", "pulse,alsa");
             pb.environment().put("MESA_GL_VERSION_OVERRIDE", "4.6");
-            Logger.info("[GameLauncher] 🔊 ALSOFT_DRIVERS: pulse,alsa");
-            Logger.info("[GameLauncher] 🎮 MESA_GL_VERSION_OVERRIDE: 4.6");
+            LogSystem.info("[GameLauncher] 🔊 ALSOFT_DRIVERS: pulse,alsa");
+            LogSystem.info("[GameLauncher] 🎮 MESA_GL_VERSION_OVERRIDE: 4.6");
         }
 
         if (listener != null) listener.onProgress("Игра запускается!", 100, 100, 0);
-        Logger.info("[GameLauncher] ═══════════════════════════════════════════════════════");
-        Logger.info("[Launcher] Запуск игры...");
-        Logger.info("[GameLauncher] ═══════════════════════════════════════════════════════");
+        LogSystem.info("[GameLauncher] ═══════════════════════════════════════════════════════");
+        LogSystem.info("[Launcher] Запуск игры...");
+        LogSystem.info("[GameLauncher] ═══════════════════════════════════════════════════════");
         
         try {
             Process gameProcess = pb.start();
             
-            Logger.info("[GameLauncher] ✅ Процесс Java запущен успешно (PID: " + gameProcess.pid() + ")");
+            LogSystem.info("[GameLauncher] ✅ Процесс Java запущен успешно (PID: " + gameProcess.pid() + ")");
             
             // Увеличиваем счетчик запусков
             updateLaunchStats(instanceName);
@@ -307,10 +307,10 @@ public class GameLauncher {
                         new java.io.InputStreamReader(gameProcess.getInputStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        Logger.info("[GAME] " + line);
+                        LogSystem.info("[GAME] " + line);
                     }
                 } catch (Exception e) {
-                    Logger.error("[GameLauncher] Ошибка чтения stdout: " + e.getMessage());
+                    LogSystem.error("[GameLauncher] Ошибка чтения stdout: " + e.getMessage());
                 }
             });
             
@@ -319,10 +319,10 @@ public class GameLauncher {
                         new java.io.InputStreamReader(gameProcess.getErrorStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        Logger.error("[GAME-ERR] " + line);
+                        LogSystem.error("[GAME-ERR] " + line);
                     }
                 } catch (Exception e) {
-                    Logger.error("[GameLauncher] Ошибка чтения stderr: " + e.getMessage());
+                    LogSystem.error("[GameLauncher] Ошибка чтения stderr: " + e.getMessage());
                 }
             });
             
@@ -338,9 +338,9 @@ public class GameLauncher {
                     gameProcess.waitFor();
                     long playtime = (System.currentTimeMillis() - startTime) / 60000; // в минутах
                     updatePlaytime(instanceName, playtime);
-                    Logger.info("[GameLauncher] ✅ Время игры успешно сохранено: " + playtime + " минут");
+                    LogSystem.info("[GameLauncher] ✅ Время игры успешно сохранено: " + playtime + " минут");
                 } catch (InterruptedException e) {
-                    Logger.error("[GameLauncher] Ошибка отслеживания времени: " + e.getMessage());
+                    LogSystem.error("[GameLauncher] Ошибка отслеживания времени: " + e.getMessage());
                 }
             });
             playtimeTracker.setDaemon(false); // НЕ daemon, чтобы успеть сохранить
@@ -351,25 +351,25 @@ public class GameLauncher {
             // CreateProcess error=193 - файл не является приложением Win32
             if (e.getMessage() != null && (e.getMessage().contains("CreateProcess error=193") || 
                                           e.getMessage().contains("cannot run program"))) {
-                Logger.error("[GameLauncher] ❌ ОШИБКА ЗАПУСКА (CreateProcess error=193)");
-                Logger.error("[GameLauncher] Java путь: " + javaExec);
-                Logger.error("[GameLauncher] ОС: " + System.getProperty("os.name"));
-                Logger.error("[GameLauncher] Архитектура: " + System.getProperty("os.arch"));
-                Logger.error("[GameLauncher] ");
-                Logger.error("[GameLauncher] РЕШЕНИЕ:");
-                Logger.error("[GameLauncher] 1. Проверьте, что Java существует по пути: " + javaExec);
-                Logger.error("[GameLauncher] 2. Если путь содержит пробелы (например 'java 8'), это нормально - ProcessBuilder правильно их обработает");
-                Logger.error("[GameLauncher] 3. На Windows может быть проблема с разрядностью Java (32-бит вместо 64-бит)");
-                Logger.error("[GameLauncher] 4. Убедитесь, что это Windows исполняемый файл (java.exe), а не Linux версия");
-                Logger.error("[GameLauncher] ");
-                Logger.error("[GameLauncher] Причина: " + e.getMessage());
+                LogSystem.error("[GameLauncher] ❌ ОШИБКА ЗАПУСКА (CreateProcess error=193)");
+                LogSystem.error("[GameLauncher] Java путь: " + javaExec);
+                LogSystem.error("[GameLauncher] ОС: " + System.getProperty("os.name"));
+                LogSystem.error("[GameLauncher] Архитектура: " + System.getProperty("os.arch"));
+                LogSystem.error("[GameLauncher] ");
+                LogSystem.error("[GameLauncher] РЕШЕНИЕ:");
+                LogSystem.error("[GameLauncher] 1. Проверьте, что Java существует по пути: " + javaExec);
+                LogSystem.error("[GameLauncher] 2. Если путь содержит пробелы (например 'java 8'), это нормально - ProcessBuilder правильно их обработает");
+                LogSystem.error("[GameLauncher] 3. На Windows может быть проблема с разрядностью Java (32-бит вместо 64-бит)");
+                LogSystem.error("[GameLauncher] 4. Убедитесь, что это Windows исполняемый файл (java.exe), а не Linux версия");
+                LogSystem.error("[GameLauncher] ");
+                LogSystem.error("[GameLauncher] Причина: " + e.getMessage());
             } else {
-                Logger.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage());
+                LogSystem.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage());
             }
             e.printStackTrace();
             throw e;
         } catch (Exception e) {
-            Logger.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage());
+            LogSystem.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage());
             e.printStackTrace();
             throw e;
         }
@@ -419,10 +419,10 @@ public class GameLauncher {
                     
                     // Сохраняем обновленный конфиг
                     Files.writeString(configFile.toPath(), gson.toJson(json));
-                    Logger.info("[GameLauncher] 📊 Обновлена статистика запусков для " + instanceName + ": " + (launches + 1));
+                    LogSystem.info("[GameLauncher] 📊 Обновлена статистика запусков для " + instanceName + ": " + (launches + 1));
                 }
             } catch (Exception e) {
-                Logger.error("[GameLauncher] Ошибка обновления статистики запусков: " + e.getMessage());
+                LogSystem.error("[GameLauncher] Ошибка обновления статистики запусков: " + e.getMessage());
             }
         }
 
@@ -450,10 +450,10 @@ public class GameLauncher {
                     
                     // Сохраняем обновленный конфиг
                     Files.writeString(configFile.toPath(), gson.toJson(json));
-                    Logger.info("[GameLauncher] 📊 Обновлено время игры для " + instanceName + ": " + playtimeDisplay);
+                    LogSystem.info("[GameLauncher] 📊 Обновлено время игры для " + instanceName + ": " + playtimeDisplay);
                 }
             } catch (Exception e) {
-                Logger.error("[GameLauncher] Ошибка обновления времени игры: " + e.getMessage());
+                LogSystem.error("[GameLauncher] Ошибка обновления времени игры: " + e.getMessage());
             }
         }
     }
