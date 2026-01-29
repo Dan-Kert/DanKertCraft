@@ -264,8 +264,7 @@ public class BuildExporter {
             return exportFile;
             
         } catch (Exception e) {
-            LogSystem.error("[BuildExporter] Ошибка при экспорте ZIP: " + e.getMessage());
-            e.printStackTrace();
+            LogSystem.error("[BuildExporter] Ошибка при экспорте ZIP: " + e.getMessage(), e);
             return null;
         }
     }
@@ -388,8 +387,7 @@ public class BuildExporter {
             return true;
             
         } catch (Exception e) {
-            LogSystem.error("[BuildExporter] Ошибка при импорте ZIP: " + e.getMessage());
-            e.printStackTrace();
+            LogSystem.error("[BuildExporter] Ошибка при импорте ZIP: " + e.getMessage(), e);
             return false;
         }
     }

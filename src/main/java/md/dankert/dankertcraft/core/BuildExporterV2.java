@@ -148,8 +148,7 @@ public class BuildExporterV2 {
             return exportFile;
             
         } catch (Exception e) {
-            LogSystem.error("[BuildExporter] Ошибка при экспорте: " + e.getMessage());
-            e.printStackTrace();
+            LogSystem.error("[BuildExporter] Ошибка при экспорте: " + e.getMessage(), e);
             return null;
         }
     }
@@ -275,8 +274,7 @@ public class BuildExporterV2 {
             return true;
             
         } catch (Exception e) {
-            LogSystem.error("[BuildExporter] Ошибка при импорте: " + e.getMessage());
-            e.printStackTrace();
+            LogSystem.error("[BuildExporter] Ошибка при импорте: " + e.getMessage(), e);
             return false;
         }
     }

@@ -46,8 +46,7 @@ public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
             System.err.println("════════════════════════════════════════════════════════════");
             
         } catch (Exception e) {
-            System.err.println("❌ ОШИБКА ОБРАБОТЧИКА ИСКЛЮЧЕНИЙ:");
-            e.printStackTrace();
+            LogSystem.error("❌ ОШИБКА ОБРАБОТЧИКА ИСКЛЮЧЕНИЙ:", e);
         }
     }
     

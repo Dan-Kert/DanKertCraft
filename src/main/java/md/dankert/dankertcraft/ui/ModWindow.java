@@ -298,8 +298,7 @@ public class ModWindow {
                     }
                 });
             } catch (Exception e) {
-                e.printStackTrace();
-                LogSystem.info("[ModWindow] Ошибка поиска: " + e.getMessage());
+                LogSystem.error("[ModWindow] Ошибка поиска: " + e.getMessage(), e);
                 Platform.runLater(() -> {
                     modrinthList.getItems().clear();
                     modrinthList.getItems().add(t("mod.search.error"));

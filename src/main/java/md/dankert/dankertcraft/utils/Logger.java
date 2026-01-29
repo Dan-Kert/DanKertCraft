@@ -91,8 +91,7 @@ public class Logger {
                 info("═══════════════════════════════════════════════════════");
                 
             } catch (IOException e) {
-                error("❌ Не удалось открыть лог файл: " + filePath);
-                e.printStackTrace();
+                error("❌ Не удалось открыть лог файл: " + filePath, e);
             }
         }
     }

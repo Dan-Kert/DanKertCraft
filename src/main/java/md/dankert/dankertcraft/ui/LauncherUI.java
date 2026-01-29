@@ -86,7 +86,7 @@ public class LauncherUI extends Application {
         if (mainCssUrl != null) {
             scene.getStylesheets().add(mainCssUrl.toExternalForm());
         } else {
-            LogSystem.warn("CSS файл не найден: /styles/main.css");
+            LogSystem.info("CSS файл не найден: /styles/main.css — используется встроенный CSS");
         }
 
         // 5. Настройка Stage (Окна)
@@ -161,7 +161,6 @@ public class LauncherUI extends Application {
                     });
                 } catch (Exception ex) {
                     LogSystem.error("[UI] Критическая ошибка запуска: " + ex.getMessage(), ex);
-                    ex.printStackTrace();
                     Platform.runLater(() -> {
                         primaryStage.show();
                         new Alert(Alert.AlertType.ERROR, "❌ Ошибка запуска: " + ex.getMessage()).show();
@@ -278,15 +277,30 @@ public class LauncherUI extends Application {
             Image img = null;
             if (iconName != null && iconName.startsWith("custom:")) {
                 File file = new File(workDir + "/custom_icons/" + iconName.replace("custom:", ""));
-                if (file.exists()) img = new Image(new FileInputStream(file));
+                if (file.exists() && file.canRead()) {
+                    try (FileInputStream fis = new FileInputStream(file)) {
+                        img = new Image(fis);
+                    } catch (Exception e) {
+                        LogSystem.warn("[LauncherUI] Ошибка загрузки кастомной иконки " + iconName + ": " + e.getMessage());
+                    }
+                }
             }
             if (img == null) {
-                InputStream is = getClass().getResourceAsStream("/icons/blocks/" + (iconName != null ? iconName : "standart.png"));
-                if (is == null) is = getClass().getResourceAsStream("/icons/blocks/standart.png");
-                img = new Image(is);
+                String resourcePath = "/icons/blocks/" + (iconName != null ? iconName : "standart.png");
+                InputStream is = getClass().getResourceAsStream(resourcePath);
+                if (is == null) {
+                    is = getClass().getResourceAsStream("/icons/blocks/standart.png");
+                }
+                if (is != null) {
+                    img = new Image(is);
+                } else {
+                    LogSystem.warn("[LauncherUI] Не удалось загрузить ни одну иконку для " + iconName);
+                }
             }
-            iv.setImage(img);
-        } catch (Exception e) {}
+            if (img != null) iv.setImage(img);
+        } catch (Exception e) {
+            LogSystem.error("[LauncherUI] Ошибка при загрузке иконки: " + e.getMessage(), e);
+        }
         return iv;
     }
 

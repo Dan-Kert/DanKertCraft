@@ -40,7 +40,7 @@ public class Main {
             
         } catch (Exception e) {
             System.err.println("❌ Ошибка инициализации логирования: " + e.getMessage());
-            e.printStackTrace();
+            try { LogSystem.error("Ошибка инициализации логирования: " + e.getMessage(), e); } catch (Exception ex) { System.err.println("Ошибка логирования: " + ex.getMessage()); }
         }
         
         Application.launch(LauncherUI.class, args);

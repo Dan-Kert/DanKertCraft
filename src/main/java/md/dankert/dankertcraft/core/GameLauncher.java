@@ -20,8 +20,13 @@ public class GameLauncher {
     // Добавляем возможность принимать ProgressListener, если хотим видеть прогресс запуска
     public Process launch(String instanceName, String ram, String username, ProgressListener listener) throws Exception {
         // Windows-specific: проверяем архитектуру системы
+        String osName = System.getProperty("os.name").toLowerCase();
         String osArch = System.getProperty("os.arch").toLowerCase();
+        boolean isWindows = osName.contains("win");
         boolean is32bit = osArch.contains("x86") && !osArch.contains("x86_64");
+        
+        LogSystem.info("[GameLauncher] 🖥️ Платформа: " + (isWindows ? "Windows" : "Unix-подобная") + " (" + osArch + ")");
+        
         if (is32bit) {
             LogSystem.warn("[GameLauncher] ⚠️ 32-bit система обнаружена! Рекомендуется 64-bit Java для лучшей производительности");
         }
@@ -79,20 +84,15 @@ public class GameLauncher {
             } else {
                 javaExec = vanilla.setupJavaRuntime(mcVersion, listener);
             }
-            LogSystem.info("[GameLauncher] Java найдена: " + javaExec);
-            // Проверяем существование Java
-            File javaFile = new File(javaExec);
-            if (!javaFile.exists()) {
-                LogSystem.error("[GameLauncher] ⚠️  Файл Java не существует: " + javaExec);
-                javaExec = "java";
-            } else {
-                LogSystem.info("[GameLauncher] ✓ Файл Java существует, размер: " + javaFile.length() + " bytes");
-            }
+            
+            // ВАЛИДАЦИЯ Java
+            javaExec = validateAndNormalizeJavaPath(javaExec, isWindows);
+            LogSystem.info("[GameLauncher] ✅ Java валидирована: " + javaExec);
+            
         } catch (Exception e) {
-            LogSystem.error("[GameLauncher] ❌ Не удалось настроить Java: " + e.getMessage());
-            e.printStackTrace();
+            LogSystem.error("[GameLauncher] ❌ Не удалось настроить Java: " + e.getMessage(), e);
             LogSystem.info("[GameLauncher] Попытаемся использовать системную Java...");
-            javaExec = "java"; // Пытаемся использовать системную Java
+            javaExec = isWindows ? "java.exe" : "java";
         }
 
         List<String> fullClasspath = new ArrayList<>();
@@ -300,6 +300,13 @@ public class GameLauncher {
         LogSystem.info("[Launcher] Запуск игры...");
         LogSystem.info("[GameLauncher] ═══════════════════════════════════════════════════════");
         
+        // Ensure default icons exist in the instance directory to avoid ImageIO errors
+        try {
+            ensureInstanceIcons(instanceDir);
+        } catch (Exception e) {
+            LogSystem.warn("[GameLauncher] Не удалось подготовить иконки инстанса: " + e.getMessage());
+        }
+
         try {
             Process gameProcess = pb.start();
             
@@ -308,33 +315,39 @@ public class GameLauncher {
             // Увеличиваем счетчик запусков
             updateLaunchStats(instanceName);
             
-            // Создаём потоки для захвата вывода процесса
+            // Создаём потоки для захвата вывода процесса с именами
             Thread stdoutReader = new Thread(() -> {
                 try (java.io.BufferedReader reader = new java.io.BufferedReader(
                         new java.io.InputStreamReader(gameProcess.getInputStream()))) {
                     String line;
-                    while ((line = reader.readLine()) != null) {
+                    while ((line = reader.readLine()) != null && !Thread.currentThread().isInterrupted()) {
                         LogSystem.info("[GAME] " + line);
                     }
                 } catch (Exception e) {
-                    LogSystem.error("[GameLauncher] Ошибка чтения stdout: " + e.getMessage());
+                    if (!Thread.currentThread().isInterrupted()) {
+                        LogSystem.error("[GameLauncher] Ошибка чтения stdout: " + e.getMessage());
+                    }
                 }
-            });
+            }, "GameStdout-Reader");
             
             Thread stderrReader = new Thread(() -> {
                 try (java.io.BufferedReader reader = new java.io.BufferedReader(
                         new java.io.InputStreamReader(gameProcess.getErrorStream()))) {
                     String line;
-                    while ((line = reader.readLine()) != null) {
+                    while ((line = reader.readLine()) != null && !Thread.currentThread().isInterrupted()) {
                         LogSystem.error("[GAME-ERR] " + line);
                     }
                 } catch (Exception e) {
-                    LogSystem.error("[GameLauncher] Ошибка чтения stderr: " + e.getMessage());
+                    if (!Thread.currentThread().isInterrupted()) {
+                        LogSystem.error("[GameLauncher] Ошибка чтения stderr: " + e.getMessage());
+                    }
                 }
-            });
+            }, "GameStderr-Reader");
             
             stdoutReader.setDaemon(true);
             stderrReader.setDaemon(true);
+            stdoutReader.setUncaughtExceptionHandler((t, ex) -> LogSystem.error("[GameLauncher] Необработанное исключение в " + t.getName() + ": " + ex.getMessage(), ex));
+            stderrReader.setUncaughtExceptionHandler((t, ex) -> LogSystem.error("[GameLauncher] Необработанное исключение в " + t.getName() + ": " + ex.getMessage(), ex));
             stdoutReader.start();
             stderrReader.start();
             
@@ -348,9 +361,11 @@ public class GameLauncher {
                     LogSystem.info("[GameLauncher] ✅ Время игры успешно сохранено: " + playtime + " минут");
                 } catch (InterruptedException e) {
                     LogSystem.error("[GameLauncher] Ошибка отслеживания времени: " + e.getMessage());
+                    Thread.currentThread().interrupt();
                 }
-            });
+            }, "PlaytimeTracker-Thread");
             playtimeTracker.setDaemon(false); // НЕ daemon, чтобы успеть сохранить
+            playtimeTracker.setUncaughtExceptionHandler((t, ex) -> LogSystem.error("[GameLauncher] Ошибка трекера времени: " + ex.getMessage(), ex));
             playtimeTracker.start();
             
             return gameProcess;
@@ -371,96 +386,190 @@ public class GameLauncher {
                 LogSystem.error("[GameLauncher] ");
                 LogSystem.error("[GameLauncher] Причина: " + e.getMessage());
             } else {
-                LogSystem.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage());
+                LogSystem.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage(), e);
             }
-            e.printStackTrace();
             throw e;
         } catch (Exception e) {
-            LogSystem.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage());
-            e.printStackTrace();
+            LogSystem.error("[GameLauncher] ⚠️ КРИТИЧЕСКАЯ ОШИБКА ЗАПУСКА ИГРЫ: " + e.getMessage(), e);
             throw e;
         }
     }
+
+    // Ensure instance has icons expected by Minecraft launcher (icons/icon_16x16.png etc.)
+    private void ensureInstanceIcons(File instanceDir) {
+        try {
+            File iconsDir = new File(instanceDir, "icons");
+            if (!iconsDir.exists()) iconsDir.mkdirs();
+
+            copyResourceIfMissing("/icons/icon_16x16.png", new File(iconsDir, "icon_16x16.png"));
+            copyResourceIfMissing("/icons/icon_32x32.png", new File(iconsDir, "icon_32x32.png"));
+            // Also provide blocks fallback which some older versions may try to load
+            copyResourceIfMissing("/icons/blocks/standart.png", new File(iconsDir, "standart.png"));
+        } catch (Exception e) {
+            LogSystem.error("[GameLauncher] Ошибка при создании иконок инстанса: " + e.getMessage());
+        }
+    }
+
+    private void copyResourceIfMissing(String resourcePath, File targetFile) {
+        try {
+            if (targetFile.exists()) return;
+            java.net.URL res = getClass().getResource(resourcePath);
+            if (res == null) return; // nothing to copy
+            try (java.io.InputStream is = getClass().getResourceAsStream(resourcePath)) {
+                if (is == null) return;
+                java.nio.file.Files.copy(is, targetFile.toPath());
+                LogSystem.info("[GameLauncher] Скопирован ресурс " + resourcePath + " -> " + targetFile.getAbsolutePath());
+            }
+        } catch (Exception e) {
+            LogSystem.warn("[GameLauncher] Не удалось скопировать ресурс " + resourcePath + ": " + e.getMessage());
+        }
+    }
         private void fixNativesPermissions(File nativesDir) {
+            if (nativesDir == null || !nativesDir.exists()) return;
+            
+            boolean isWindowsOS = System.getProperty("os.name").toLowerCase().contains("win");
+            
             File[] files = nativesDir.listFiles();
             if (files != null) {
                 for (File f : files) {
-                    if (f.getName().endsWith(".so") || f.getName().contains("lib")) {
-                        f.setExecutable(true, false);
-                        f.setReadable(true, false);
+                    try {
+                        if (isWindowsOS) {
+                            // На Windows достаточно убедиться, что файл читаемый
+                            if (!f.canRead()) f.setReadable(true, false);
+                        } else {
+                            // На Linux/Mac нужны права на исполнение для .so файлов
+                            if (f.getName().endsWith(".so") || f.getName().endsWith(".dylib")) {
+                                f.setExecutable(true, false);
+                                f.setReadable(true, false);
+                            }
+                        }
+                    } catch (Exception e) {
+                        LogSystem.warn("[GameLauncher] Не удалось установить права для " + f.getName() + ": " + e.getMessage());
                     }
                 }
             }
         }
+        
+        /**
+         * Валидирует и нормализует путь к Java (Windows/Unix-совместимый)
+         */
+        private String validateAndNormalizeJavaPath(String javaPath, boolean isWindows) throws Exception {
+            if (javaPath == null || javaPath.isEmpty()) {
+                throw new Exception("Путь к Java пуст");
+            }
+            
+            File javaFile = new File(javaPath);
+            
+            // Если файл не существует, может быть указана команда без пути
+            if (!javaFile.exists()) {
+                String command = isWindows ? "java.exe" : "java";
+                if (javaPath.equals(command)) {
+                    LogSystem.info("[GameLauncher] Будет использована Java из PATH");
+                    return javaPath;
+                }
+                throw new Exception("Файл Java не найден: " + javaPath);
+            }
+            
+            if (!javaFile.isFile() || !javaFile.canExecute()) {
+                throw new Exception("Java существует, но не исполняемый или это директория: " + javaPath);
+            }
+            
+            LogSystem.info("[GameLauncher] ✓ Java валидна: " + javaFile.getAbsolutePath() + " (" + javaFile.length() + " bytes)");
+            return javaFile.getAbsolutePath();
+        }
 
 
-        private String determineMainClass(String version, VersionData data, boolean isFabric) {
-            if (isFabric) return data.mainClass;
-            if (data.mainClass != null && !data.mainClass.isEmpty()) return data.mainClass;
+    private String determineMainClass(String version, VersionData data, boolean isFabric) {
+            if (isFabric && data != null && data.mainClass != null) return data.mainClass;
+            if (data != null && data.mainClass != null && !data.mainClass.isEmpty()) return data.mainClass;
             if (isModernVersion(version)) return "net.minecraft.client.main.Main";
             return "net.minecraft.client.Minecraft";
         }
 
         private boolean isModernVersion(String version) {
+            if (version == null || version.isEmpty()) return true;
             if (version.startsWith("a") || version.startsWith("b") || version.startsWith("c") || version.contains("inf-")) return false;
             try {
                 String clean = version.replaceAll("[^0-9.]", "");
+                if (clean.isEmpty()) return true; // Если не удалось распарсить, считаем современной
                 String[] parts = clean.split("\\.");
-                if (parts.length >= 2) return Integer.parseInt(parts[1]) >= 6;
-            } catch (Exception ignored) {}
+                if (parts.length >= 2) {
+                    try {
+                        int majorVer = Integer.parseInt(parts[0]);
+                        int minorVer = Integer.parseInt(parts[1]);
+                        return majorVer > 1 || minorVer >= 6; // 1.6+ это modern
+                    } catch (NumberFormatException e) {
+                        return true;
+                    }
+                }
+            } catch (Exception e) {
+                LogSystem.warn("[GameLauncher] Не удалось определить версию " + version + ": " + e.getMessage());
+            }
             return true;
         }
 
         private void updateLaunchStats(String instanceName) {
+            if (instanceName == null || instanceName.isEmpty()) return;
+            
             try {
                 File instanceDir = new File(workDir, "instances" + File.separator + instanceName);
                 File configFile = new File(instanceDir, "instance.json");
                 
-                if (configFile.exists()) {
-                    String content = Files.readString(configFile.toPath());
-                    JsonObject json = gson.fromJson(content, JsonObject.class);
-                    
-                    // Увеличиваем счётчик запусков
-                    int launches = json.has("launches") ? json.get("launches").getAsInt() : 0;
-                    json.addProperty("launches", launches + 1);
-                    
-                    // Сохраняем обновленный конфиг
-                    Files.writeString(configFile.toPath(), gson.toJson(json));
-                    LogSystem.info("[GameLauncher] 📊 Обновлена статистика запусков для " + instanceName + ": " + (launches + 1));
+                if (!configFile.exists()) {
+                    LogSystem.warn("[GameLauncher] Конфиг инстанса не найден, статистика не обновлена");
+                    return;
                 }
+                
+                String content = Files.readString(configFile.toPath());
+                JsonObject json = gson.fromJson(content, JsonObject.class);
+                
+                // Увеличиваем счётчик запусков
+                int launches = json.has("launches") ? json.get("launches").getAsInt() : 0;
+                json.addProperty("launches", launches + 1);
+                json.addProperty("last_launch", java.time.LocalDateTime.now().toString());
+                
+                // Сохраняем обновленный конфиг
+                Files.writeString(configFile.toPath(), gson.toJson(json));
+                LogSystem.info("[GameLauncher] 📊 Обновлена статистика запусков для " + instanceName + ": " + (launches + 1));
             } catch (Exception e) {
-                LogSystem.error("[GameLauncher] Ошибка обновления статистики запусков: " + e.getMessage());
+                LogSystem.error("[GameLauncher] Ошибка обновления статистики запусков: " + e.getMessage(), e);
             }
         }
 
         private void updatePlaytime(String instanceName, long playtimeMinutes) {
+            if (instanceName == null || instanceName.isEmpty() || playtimeMinutes < 0) return;
+            
             try {
                 File instanceDir = new File(workDir, "instances" + File.separator + instanceName);
                 File configFile = new File(instanceDir, "instance.json");
                 
-                if (configFile.exists()) {
-                    String content = Files.readString(configFile.toPath());
-                    JsonObject json = gson.fromJson(content, JsonObject.class);
-                    
-                    // Получаем текущее время игры в минутах
-                    long currentPlaytime = json.has("playtime_minutes") ? json.get("playtime_minutes").getAsLong() : 0;
-                    long newPlaytime = currentPlaytime + playtimeMinutes;
-                    
-                    // Сохраняем в минутах
-                    json.addProperty("playtime_minutes", newPlaytime);
-                    
-                    // Также сохраняем в формате "X ч Y м" для отображения
-                    long hours = newPlaytime / 60;
-                    long minutes = newPlaytime % 60;
-                    String playtimeDisplay = hours + " ч " + minutes + " м";
-                    json.addProperty("playtime", playtimeDisplay);
-                    
-                    // Сохраняем обновленный конфиг
-                    Files.writeString(configFile.toPath(), gson.toJson(json));
-                    LogSystem.info("[GameLauncher] 📊 Обновлено время игры для " + instanceName + ": " + playtimeDisplay);
+                if (!configFile.exists()) {
+                    LogSystem.warn("[GameLauncher] Конфиг инстанса не найден, время игры не сохранено");
+                    return;
                 }
+                
+                String content = Files.readString(configFile.toPath());
+                JsonObject json = gson.fromJson(content, JsonObject.class);
+                
+                // Получаем текущее время игры в минутах
+                long currentPlaytime = json.has("playtime_minutes") ? json.get("playtime_minutes").getAsLong() : 0;
+                long newPlaytime = Math.max(0, currentPlaytime + playtimeMinutes);
+                
+                // Сохраняем в минутах
+                json.addProperty("playtime_minutes", newPlaytime);
+                
+                // Также сохраняем в формате "X ч Y м" для отображения
+                long hours = newPlaytime / 60;
+                long minutes = newPlaytime % 60;
+                String playtimeDisplay = hours + " ч " + minutes + " м";
+                json.addProperty("playtime", playtimeDisplay);
+                json.addProperty("playtime_updated", java.time.LocalDateTime.now().toString());
+                
+                // Сохраняем обновленный конфиг
+                Files.writeString(configFile.toPath(), gson.toJson(json));
+                LogSystem.info("[GameLauncher] 📊 Обновлено время игры для " + instanceName + ": " + playtimeDisplay);
             } catch (Exception e) {
-                LogSystem.error("[GameLauncher] Ошибка обновления времени игры: " + e.getMessage());
+                LogSystem.error("[GameLauncher] Ошибка обновления времени игры: " + e.getMessage(), e);
             }
         }
     }

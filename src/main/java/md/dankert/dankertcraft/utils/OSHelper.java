@@ -54,16 +54,15 @@ public class OSHelper {
                 } else {
                     try {
                         new ProcessBuilder("xdg-open", path).start();
-                    } catch (IOException e) {
-                        if (Desktop.isDesktopSupported()) {
-                            Desktop.getDesktop().open(folder);
-                        }
-                    }
+                            } catch (IOException e) {
+                                if (Desktop.isDesktopSupported()) {
+                                    try { Desktop.getDesktop().open(folder); } catch (Exception ex) { LogSystem.error("Ошибка открытия папки через Desktop: " + ex.getMessage(), ex); }
+                                }
+                            }
                 }
                 LogSystem.info("Команда открытия отправлена для: " + path);
             } catch (Exception e) {
-                e.printStackTrace();
-                LogSystem.error("Критическая ошибка открытия папки: " + e.getMessage());
+                LogSystem.error("Критическая ошибка открытия папки: " + e.getMessage(), e);
             }
         }).start();
     }
