@@ -289,8 +289,15 @@ public class InstallWindow {
                     if (currentCategory.equals("Fabric")) new FabricManager(workDir).prepare(ver);
                     String javaPath = vm.setupJavaRuntime(ver, this);
 
+                    // Нормализуем пути для JSON: используем forward slashes для portability, но на Windows оставляем как есть
+                    String normalizedJavaPath = javaPath;
+                    if (!System.getProperty("os.name").toLowerCase().contains("win")) {
+                        // На Linux/Mac используем forward slashes
+                        normalizedJavaPath = javaPath.replace("\\", "/");
+                    }
+                    
                     String finalJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"%s\",\"ram\":\"%s\",\"icon\":\"%s\",\"downloaded\":true}",
-                            ver, currentCategory, javaPath.replace("\\", "/"), ram, selectedIconFile);
+                            ver, currentCategory, normalizedJavaPath, ram, selectedIconFile);
                     Files.writeString(new File(instanceDir, "instance.json").toPath(), finalJson);
                     return null;
                 }
@@ -311,7 +318,8 @@ public class InstallWindow {
     private void updateIconPreview(String fileName) {
         try {
             if (fileName.startsWith("custom:")) {
-                iconPreview.setImage(new Image(new FileInputStream(new File(workDir + "/custom_icons/" + fileName.replace("custom:", "")))));
+                // Используем File.separator для кроссплатформности
+                iconPreview.setImage(new Image(new FileInputStream(new File(workDir, "custom_icons" + File.separator + fileName.replace("custom:", "")))));
             } else {
                 InputStream is = getClass().getResourceAsStream("/icons/blocks/" + fileName);
                 iconPreview.setImage(new Image(is != null ? is : getClass().getResourceAsStream("/icons/blocks/standart.png")));

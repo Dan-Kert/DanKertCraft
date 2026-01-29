@@ -329,7 +329,8 @@ public class GameInstaller {
                 
                 try {
                     String sub = hash.substring(0, 2);
-                    File objectFile = new File(workDir + "/assets/objects/" + sub + "/" + hash);
+                    // Используем File.separator для кроссплатформности
+                    File objectFile = new File(workDir, "assets" + File.separator + "objects" + File.separator + sub + File.separator + hash);
 
                     boolean downloaded = false;
                     if (!objectFile.exists() || objectFile.length() != size) {
@@ -339,7 +340,8 @@ public class GameInstaller {
                     }
 
                     if (isLegacy) {
-                        File virtualFile = new File(workDir, "assets/virtual/legacy/" + assetName);
+                        // Используем File.separator для кроссплатформности
+                        File virtualFile = new File(workDir, "assets" + File.separator + "virtual" + File.separator + "legacy" + File.separator + assetName);
                         if (!virtualFile.exists() || (downloaded)) {
                             File virtParent = virtualFile.getParentFile(); if (virtParent != null) virtParent.mkdirs();
                             Files.copy(objectFile.toPath(), virtualFile.toPath(), StandardCopyOption.REPLACE_EXISTING);

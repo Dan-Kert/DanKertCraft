@@ -414,7 +414,8 @@ public class InstanceView extends VBox {
         try {
             Image img;
             if (iconPath.startsWith("custom:")) {
-                img = new Image(new FileInputStream(new File(workDir + "/custom_icons/" + iconPath.replace("custom:", ""))));
+                // Используем File.separator для кроссплатформности
+                img = new Image(new FileInputStream(new File(workDir, "custom_icons" + File.separator + iconPath.replace("custom:", ""))));
             } else {
                 InputStream is = getClass().getResourceAsStream("/icons/blocks/" + iconPath);
                 if (is == null) is = getClass().getResourceAsStream("/icons/blocks/standart.png");

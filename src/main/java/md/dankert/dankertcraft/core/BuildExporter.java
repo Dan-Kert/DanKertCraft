@@ -53,7 +53,8 @@ public class BuildExporter {
      */
     public static File exportBuild(String workDir, String instanceName) {
         try {
-            File instanceDir = new File(workDir, "instances/" + instanceName);
+            // Используем File.separator для кроссплатформности
+            File instanceDir = new File(workDir, "instances" + File.separator + instanceName);
             File instanceJson = new File(instanceDir, "instance.json");
             
             if (!instanceJson.exists()) {
@@ -249,8 +250,10 @@ public class BuildExporter {
                     String icon = instanceConfig.get("icon").getAsString();
                     if (icon.startsWith("custom:")) {
                         String icoName = icon.replace("custom:", "");
-                        File customIcon = new File(workDir, "custom_icons/" + icoName);
+                        // Используем File.separator для кроссплатформности
+                        File customIcon = new File(workDir, "custom_icons" + File.separator + icoName);
                         if (customIcon.exists()) {
+                            // Для ZIP файла используем forward slashes (стандарт ZIP)
                             ZipEntry iconEntry = new ZipEntry("custom_icons/" + icoName);
                             zos.putNextEntry(iconEntry);
                             zos.write(Files.readAllBytes(customIcon.toPath()));

@@ -130,7 +130,8 @@ public class Sidebar extends VBox {
         try {
             Image img = null;
             if (iconPath.startsWith("custom:")) {
-                File file = new File(workDir + "/custom_icons/" + iconPath.replace("custom:", ""));
+                // Используем File.separator для кроссплатформности
+                File file = new File(workDir, "custom_icons" + File.separator + iconPath.replace("custom:", ""));
                 if (file.exists()) img = new Image(new FileInputStream(file));
             } else if (iconPath.startsWith("/")) {
                 InputStream is = getClass().getResourceAsStream(iconPath);

@@ -129,6 +129,10 @@ public class GameLauncher {
         cmd.add("-Xmx" + ram + "G");
 
         String nativesPath = nativesDir.getAbsolutePath();
+        // Нормализуем путь к нативам для Windows - старые версии требуют backslashes
+        if (isWindows) {
+            nativesPath = nativesPath.replace("/", "\\");
+        }
         cmd.add("-Djava.library.path=" + nativesPath);
 
         // ОФФЛАЙН РЕЖИМ: сообщаем JVM что аутентификация не требуется
@@ -148,7 +152,13 @@ public class GameLauncher {
 
         //cmd.add("-Dorg.lwjgl.system.allocator=system");
         cmd.add("-Dfile.encoding=UTF-8");
-        cmd.add("-Duser.dir=" + instanceDir.getAbsolutePath());
+        
+        // Нормализуем user.dir для Windows - используем backslashes для старых версий
+        String userDir = instanceDir.getAbsolutePath();
+        if (isWindows) {
+            userDir = userDir.replace("/", "\\");
+        }
+        cmd.add("-Duser.dir=" + userDir);
         cmd.add("-Dlog4j2.formatMsgNoLookups=true");
 
         cmd.add("-cp");
@@ -160,8 +170,17 @@ public class GameLauncher {
         if (isModern || isFabric) {
             cmd.add("--username"); cmd.add(username);
             cmd.add("--version"); cmd.add(mcVersion);
-            cmd.add("--gameDir"); cmd.add(instanceDir.getAbsolutePath());
-            cmd.add("--assetsDir"); cmd.add(new File(workDir, "assets").getAbsolutePath());
+            
+            // Нормализуем пути для аргументов на Windows
+            String gameDirPath = instanceDir.getAbsolutePath();
+            String assetsDirPath = new File(workDir, "assets").getAbsolutePath();
+            if (isWindows) {
+                gameDirPath = gameDirPath.replace("/", "\\");
+                assetsDirPath = assetsDirPath.replace("/", "\\");
+            }
+            
+            cmd.add("--gameDir"); cmd.add(gameDirPath);
+            cmd.add("--assetsDir"); cmd.add(assetsDirPath);
 
             String assetId = (vanillaData.assetIndex != null) ? vanillaData.assetIndex.id : "legacy";
             cmd.add("--assetIndex"); cmd.add(assetId);
@@ -452,30 +471,47 @@ public class GameLauncher {
         
         /**
          * Валидирует и нормализует путь к Java (Windows/Unix-совместимый)
+         * ВАЖНО: Для Windows используем backslashes, для Unix - forward slashes
          */
         private String validateAndNormalizeJavaPath(String javaPath, boolean isWindows) throws Exception {
             if (javaPath == null || javaPath.isEmpty()) {
                 throw new Exception("Путь к Java пуст");
             }
             
-            File javaFile = new File(javaPath);
+            // Нормализуем путь в зависимости от ОС
+            String normalizedPath = javaPath;
+            if (isWindows) {
+                // На Windows заменяем forward slashes на backslashes для совместимости со старыми версиями
+                normalizedPath = javaPath.replace("/", "\\");
+            } else {
+                // На Unix заменяем backslashes на forward slashes
+                normalizedPath = javaPath.replace("\\", "/");
+            }
+            
+            File javaFile = new File(normalizedPath);
             
             // Если файл не существует, может быть указана команда без пути
             if (!javaFile.exists()) {
                 String command = isWindows ? "java.exe" : "java";
-                if (javaPath.equals(command)) {
+                if (javaPath.equals(command) || normalizedPath.equals(command)) {
                     LogSystem.info("[GameLauncher] Будет использована Java из PATH");
-                    return javaPath;
+                    return normalizedPath;
                 }
-                throw new Exception("Файл Java не найден: " + javaPath);
+                throw new Exception("Файл Java не найден: " + normalizedPath);
             }
             
             if (!javaFile.isFile() || !javaFile.canExecute()) {
-                throw new Exception("Java существует, но не исполняемый или это директория: " + javaPath);
+                throw new Exception("Java существует, но не исполняемый или это директория: " + normalizedPath);
             }
             
-            LogSystem.info("[GameLauncher] ✓ Java валидна: " + javaFile.getAbsolutePath() + " (" + javaFile.length() + " bytes)");
-            return javaFile.getAbsolutePath();
+            String absolutePath = javaFile.getAbsolutePath();
+            // Нормализуем финальный путь
+            if (isWindows) {
+                absolutePath = absolutePath.replace("/", "\\");
+            }
+            
+            LogSystem.info("[GameLauncher] ✓ Java валидна: " + absolutePath + " (" + javaFile.length() + " bytes)");
+            return absolutePath;
         }
 
 

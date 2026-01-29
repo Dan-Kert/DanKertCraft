@@ -276,7 +276,8 @@ public class LauncherUI extends Application {
         try {
             Image img = null;
             if (iconName != null && iconName.startsWith("custom:")) {
-                File file = new File(workDir + "/custom_icons/" + iconName.replace("custom:", ""));
+                // Используем File.separator для кроссплатформности
+                File file = new File(workDir, "custom_icons" + File.separator + iconName.replace("custom:", ""));
                 if (file.exists() && file.canRead()) {
                     try (FileInputStream fis = new FileInputStream(file)) {
                         img = new Image(fis);

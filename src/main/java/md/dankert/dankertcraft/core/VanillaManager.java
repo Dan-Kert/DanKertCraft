@@ -172,7 +172,9 @@ public class VanillaManager {
     private String convertMavenToPath(String maven) {
         String[] parts = maven.split(":");
         if (parts.length < 3) return maven;
-        return String.format("%s/%s/%s/%s-%s.jar",
-                parts[0].replace(".", "/"), parts[1], parts[2], parts[1], parts[2]);
+        // Используем File.separator для кроссплатформности
+        String sep = File.separator;
+        return String.format("%s%s%s%s%s%s%s-%s.jar",
+                parts[0].replace(".", sep), sep, parts[1], sep, parts[2], sep, parts[1], parts[2]);
     }
 }
