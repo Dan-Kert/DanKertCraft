@@ -107,7 +107,7 @@ public class LogSystem {
                 if (!loggerRunning) {
                     loggerRunning = true;
                     logWriterThread = new Thread(LogSystem::logWriterWorker, "LogWriter-Thread");
-                    logWriterThread.setDaemon(false);
+                    logWriterThread.setDaemon(false); // НЕ демон - должен завершиться корректно
                     logWriterThread.start();
                 }
                 
@@ -127,10 +127,17 @@ public class LogSystem {
             logToFile = false;
             loggerRunning = false;
             
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+            // Ждём завершения потока логирования (макс 5 сек)
+            if (logWriterThread != null && logWriterThread.isAlive()) {
+                try {
+                    logWriterThread.join(5000);
+                    if (logWriterThread.isAlive()) {
+                        LogSystem.warn("⚠️ LogWriter не завершился за 5 сек, принудительное завершение");
+                        logWriterThread.interrupt();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
             
             if (fileWriter != null) {

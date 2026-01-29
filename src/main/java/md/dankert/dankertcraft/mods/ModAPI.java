@@ -1,6 +1,7 @@
 package md.dankert.dankertcraft.mods;
 
 import com.google.gson.Gson;
+import md.dankert.dankertcraft.utils.LogSystem;
 
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -30,7 +31,7 @@ public class ModAPI {
                 return result != null ? result.hits : new ArrayList<>();
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LogSystem.error("[ModAPI] Ошибка при поиске модов (запрос: " + query + ")", e);
             return new ArrayList<>();
         }
     }
@@ -54,7 +55,7 @@ public class ModAPI {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            LogSystem.error("[ModAPI] Ошибка при получении ссылки на скачивание модуля: " + projectId, e);
         }
         return null;
     }

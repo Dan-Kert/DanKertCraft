@@ -19,6 +19,13 @@ public class GameLauncher {
 
     // Добавляем возможность принимать ProgressListener, если хотим видеть прогресс запуска
     public Process launch(String instanceName, String ram, String username, ProgressListener listener) throws Exception {
+        // Windows-specific: проверяем архитектуру системы
+        String osArch = System.getProperty("os.arch").toLowerCase();
+        boolean is32bit = osArch.contains("x86") && !osArch.contains("x86_64");
+        if (is32bit) {
+            LogSystem.warn("[GameLauncher] ⚠️ 32-bit система обнаружена! Рекомендуется 64-bit Java для лучшей производительности");
+        }
+        
         // 1. ПУТИ СБОРКИ
         File instanceDir = new File(workDir, "instances" + File.separator + instanceName);
         if (!instanceDir.exists()) instanceDir.mkdirs();

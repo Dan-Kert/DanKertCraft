@@ -87,13 +87,10 @@ public class LogWindow {
         stage.setScene(new Scene(layout));
         
         // Добавляем CSS если файл существует
-        try {
-            String css = getClass().getResource("/style.css").toExternalForm();
-            if (css != null) {
-                stage.getScene().getStylesheets().add(css);
-            }
-        } catch (Exception e) {
-            // CSS файл не найден, используем встроенные стили
+        java.net.URL cssUrl = getClass().getResource("/style.css");
+        if (cssUrl != null) {
+            stage.getScene().getStylesheets().add(cssUrl.toExternalForm());
+        } else {
             LogSystem.warn("[LogWindow] CSS файл не найден, используются встроенные стили");
         }
 

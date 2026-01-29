@@ -25,26 +25,91 @@ public class FileDownloadHelper {
 
     private static final int BUFFER_SIZE = 8192;
     private static final int CONNECTION_TIMEOUT = 10000;
+    private static final int READ_TIMEOUT = 60000; // 60 сек
+    private static final int MAX_RETRIES = 3;
+    private static final long RETRY_DELAY_MS = 1000; // 1 секунда
+    
+    // Windows-specific: максимум попыток удаления заблокированного файла
+    private static final int MAX_DELETE_ATTEMPTS = 5;
 
     /**
-     * Скачать файл с поддержкой прогресса
+     * Скачать файл с поддержкой прогресса и автоматических ретраев
      * @param urlString URL для скачивания
      * @param destinationFile Путь куда сохранить файл
      * @param listener Слушатель прогресса (может быть null)
      * @throws IOException если возникла ошибка при скачивании
      */
     public static void downloadWithProgress(String urlString, String destinationFile, DownloadProgressListener listener) throws IOException {
+        IOException lastException = null;
+        
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                downloadWithProgressInternal(urlString, destinationFile, listener);
+                return; // Успешно скачали
+            } catch (IOException e) {
+                lastException = e;
+                if (attempt < MAX_RETRIES) {
+                    long delayMs = RETRY_DELAY_MS * (long) Math.pow(2, attempt - 1); // Exponential backoff
+                    LogSystem.warn("[FileDownload] Попытка " + attempt + "/" + MAX_RETRIES + " не удалась, ожидание " + delayMs + "мс перед повтором");
+                    try {
+                        Thread.sleep(delayMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Скачивание прервано", ie);
+                    }
+                } else {
+                    LogSystem.error("[FileDownload] Все " + MAX_RETRIES + " попытки не удались");
+                }
+            }
+        }
+        
+        // Очищаем неполный файл (Windows-specific: может быть заблокирован)
+        File outFile = new File(destinationFile);
+        if (outFile.exists()) {
+            deleteFileWithRetry(outFile, destinationFile);
+        }
+        
+        throw lastException;
+    }
+    
+    // Windows-specific: удаление файла с повторными попытками при блокировке
+    private static void deleteFileWithRetry(File file, String filePath) {
+        for (int attempt = 1; attempt <= MAX_DELETE_ATTEMPTS; attempt++) {
+            if (file.delete()) {
+                LogSystem.info("[FileDownload] Неполный файл удалён: " + filePath);
+                return;
+            }
+            
+            if (attempt < MAX_DELETE_ATTEMPTS) {
+                try {
+                    // На Windows файл может быть заблокирован процессом - ждём перед повтором
+                    Thread.sleep(100 * attempt); // 100мс, 200мс, 300мс, ...
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        
+        LogSystem.warn("[FileDownload] ⚠️ Не удалось удалить неполный файл после " + MAX_DELETE_ATTEMPTS + " попыток: " + filePath);
+        LogSystem.warn("[FileDownload] (Возможно, файл заблокирован на Windows или нет прав доступа)");
+    }
+
+    private static void downloadWithProgressInternal(String urlString, String destinationFile, DownloadProgressListener listener) throws IOException {
         File outFile = new File(destinationFile);
 
         // Убедимся что директория существует
         File parentDir = outFile.getParentFile();
         if (parentDir != null && !parentDir.exists()) {
-            parentDir.mkdirs();
+            if (!parentDir.mkdirs()) {
+                throw new IOException("Не удалось создать директорию: " + parentDir.getAbsolutePath());
+            }
         }
 
         URL url = new URL(urlString);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setConnectTimeout(CONNECTION_TIMEOUT);
+        connection.setReadTimeout(60000); // 60 сек на чтение
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
 
         int responseCode = connection.getResponseCode();

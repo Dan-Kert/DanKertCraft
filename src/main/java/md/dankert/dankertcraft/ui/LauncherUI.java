@@ -82,11 +82,11 @@ public class LauncherUI extends Application {
                 ".recent-card:hover { -fx-background-color: #252525; -fx-cursor: hand; }";
         scene.getStylesheets().add(css);
 
-        try {
-            String mainCss = getClass().getResource("/styles/main.css").toExternalForm();
-            scene.getStylesheets().add(mainCss);
-        } catch (Exception e) {
-            LogSystem.error("CSS файл не найден: " + e.getMessage());
+        java.net.URL mainCssUrl = getClass().getResource("/styles/main.css");
+        if (mainCssUrl != null) {
+            scene.getStylesheets().add(mainCssUrl.toExternalForm());
+        } else {
+            LogSystem.warn("CSS файл не найден: /styles/main.css");
         }
 
         // 5. Настройка Stage (Окна)
@@ -139,23 +139,33 @@ public class LauncherUI extends Application {
                     Platform.runLater(() -> {
                         LogWindow crashMonitor = new LogWindow(instanceName);
                         crashMonitor.monitor(gameProcess);
+                        // Скрываем окно launcher сразу после запуска игры
                         primaryStage.hide();
+                        LogSystem.info("[UI] Окно launcher скрыто, игра должна запуститься");
                     });
 
+                    // Ожидаем завершения игры в отдельном потоке (НЕ в UI)
                     int exitCode = gameProcess.waitFor();
+                    
+                    LogSystem.info("[UI] Игра завершила работу с кодом: " + exitCode);
 
+                    // Показываем launcher после завершения игры
                     Platform.runLater(() -> {
                         primaryStage.show();
                         if (exitCode != 0) {
-                            new Alert(Alert.AlertType.WARNING, "Игра закрылась с кодом: " + exitCode).show();
+                            new Alert(Alert.AlertType.WARNING, 
+                                "⚠️ Игра закрылась с кодом: " + exitCode + "\n\nПроверьте логи для деталей.").show();
                         }
                         downloadStatusBar.hideBar();
+                        LogSystem.info("[UI] Окно launcher показано снова");
                     });
                 } catch (Exception ex) {
+                    LogSystem.error("[UI] Критическая ошибка запуска: " + ex.getMessage(), ex);
                     ex.printStackTrace();
                     Platform.runLater(() -> {
                         primaryStage.show();
-                        new Alert(Alert.AlertType.ERROR, "Ошибка запуска: " + ex.getMessage()).show();
+                        new Alert(Alert.AlertType.ERROR, "❌ Ошибка запуска: " + ex.getMessage()).show();
+                        downloadStatusBar.hideBar();
                     });
                     throw ex;
                 }

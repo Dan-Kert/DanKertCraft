@@ -18,6 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class GameInstaller {
+    private static GameInstaller instance; // Singleton
     private final String workDir;
     private final Gson gson = new Gson();
     private final String osFamily;
@@ -26,7 +27,7 @@ public class GameInstaller {
     private volatile boolean shouldStop = false;
     private volatile boolean isPaused = false;
 
-    public GameInstaller(String workDir) {
+    private GameInstaller(String workDir) {
         this.workDir = workDir;
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("win")) this.osFamily = "windows";
@@ -37,16 +38,23 @@ public class GameInstaller {
                    " (" + System.getProperty("os.name") + ")");
     }
 
-    public void setProgressListener(ProgressListener listener) {
-        this.listener = listener;
+    // Singleton accessor - гарантирует одну инстанцию на весь launcher
+    public static synchronized GameInstaller getInstance(String workDir) {
+        if (instance == null) {
+            instance = new GameInstaller(workDir);
+            LogSystem.info("[GameInstaller] ✅ Singleton создан");
+        }
+        return instance;
     }
 
     public void stop() {
         this.shouldStop = true;
+        LogSystem.warn("[GameInstaller] ⚠️ Флаг shouldStop установлен - загрузка будет отменена");
     }
 
     public void setPaused(boolean paused) {
         this.isPaused = paused;
+        LogSystem.info("[GameInstaller] " + (paused ? "⏸ Загрузка паузирована" : "▶ Загрузка возобновлена"));
     }
 
     public boolean isStopped() {
@@ -55,6 +63,13 @@ public class GameInstaller {
 
     public boolean isPaused() {
         return isPaused;
+    }
+    
+    // Хелпер для безопасного логирования исключений в потоках
+    public static void setupThreadExceptionHandler(Thread thread) {
+        thread.setUncaughtExceptionHandler((t, e) -> {
+            LogSystem.error("[" + t.getName() + "] Необработанное исключение в потоке", e);
+        });
     }
 
     private void checkPause() {
@@ -95,14 +110,19 @@ public class GameInstaller {
             
             // Сохраняем в кэш
             if (configMgr.isCacheVersions() && !ids.isEmpty()) {
-                cacheMgr.saveVersionsToCache(ids);
+                boolean saved = cacheMgr.saveVersionsToCache(ids);
+                if (saved) {
+                    LogSystem.info("[GameInstaller] ✅ Версии кэшированы успешно");
+                } else {
+                    LogSystem.warn("[GameInstaller] ⚠️ Не удалось сохранить версии в кэш");
+                }
             }
             
             return ids;
         } catch (Exception e) {
-            LogSystem.error("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш");
+            LogSystem.error("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш", e);
             List<String> cached = cacheMgr.getVersionsFromCache();
-            if (cached != null) {
+            if (!cached.isEmpty()) {
                 return cached;
             }
             throw new IOException(LanguageStrings.get("error.download.versions"), e);
@@ -354,13 +374,19 @@ public class GameInstaller {
     }
 
     private void waitForFinish(ExecutorService executor, String label) {
-        executor.shutdown();
         try {
+            executor.shutdown();
             if (!executor.awaitTermination(30, TimeUnit.MINUTES)) {
+                LogSystem.warn("[Installer] Таймаут ожидания потоков, принудительное завершение...");
                 executor.shutdownNow();
+                // Даём ещё время на завершение после shutdownNow
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    LogSystem.error("[Installer] Потоки не завершились даже после shutdownNow!");
+                }
             }
             LogSystem.info("[Installer] Загрузка завершена: " + label);
         } catch (InterruptedException e) {
+            LogSystem.error("[Installer] Прерывание при ожидании завершения потоков", e);
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }

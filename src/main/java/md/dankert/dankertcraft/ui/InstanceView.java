@@ -14,6 +14,7 @@ import javafx.stage.Stage;
 import md.dankert.dankertcraft.utils.OSHelper;
 import md.dankert.dankertcraft.utils.InstanceConfigHelper;
 import md.dankert.dankertcraft.utils.LanguageStrings;
+import md.dankert.dankertcraft.utils.LogSystem;
 import md.dankert.dankertcraft.config.ConfigManager;
 
 import java.io.File;
@@ -310,14 +311,57 @@ public class InstanceView extends VBox {
     }
 
     private void deleteInstance() {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Удалить сборку " + instanceName + "?", ButtonType.YES, ButtonType.NO);
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, 
+            "Удалить сборку " + instanceName + "?\n\nЭто действие необратимо!", 
+            ButtonType.YES, ButtonType.NO);
         alert.showAndWait().ifPresent(type -> {
             if (type == ButtonType.YES) {
-                try {
-                    File folder = new File(workDir, "instances/" + instanceName);
-                    Files.walk(folder.toPath()).sorted(Comparator.reverseOrder()).map(java.nio.file.Path::toFile).forEach(File::delete);
-                    onRefreshNeeded.run();
-                } catch (Exception e) { e.printStackTrace(); }
+                // Асинхронное удаление в фоновом потоке чтобы не зависла UI
+                new Thread(() -> {
+                    try {
+                        File folder = new File(workDir, "instances/" + instanceName);
+                        if (!folder.exists()) {
+                            LogSystem.warn("[InstanceView] Папка сборки не найдена: " + folder.getAbsolutePath());
+                            return;
+                        }
+                        
+                        LogSystem.info("[InstanceView] Начало удаления сборки: " + instanceName);
+                        
+                        long[] deletedCount = {0};
+                        long[] totalCount = {0};
+                        
+                        // Первый проход - подсчёт
+                        try (var stream = Files.walk(folder.toPath())) {
+                            totalCount[0] = stream.count();
+                        }
+                        
+                        // Второй проход - удаление
+                        try (var stream = Files.walk(folder.toPath())
+                            .sorted(Comparator.reverseOrder())) {
+                            stream.forEach(path -> {
+                                try {
+                                    Files.delete(path);
+                                    deletedCount[0]++;
+                                } catch (Exception e) {
+                                    LogSystem.warn("[InstanceView] Не удалось удалить: " + path + ", " + e.getMessage());
+                                }
+                            });
+                        }
+                        
+                        LogSystem.info("[InstanceView] ✅ Сборка удалена (файлов: " + deletedCount[0] + "/" + totalCount[0] + ")");
+                        Platform.runLater(() -> {
+                            onRefreshNeeded.run();
+                            Alert successAlert = new Alert(Alert.AlertType.INFORMATION, "Сборка " + instanceName + " успешно удалена");
+                            successAlert.showAndWait();
+                        });
+                    } catch (Exception e) {
+                        LogSystem.error("[InstanceView] Ошибка удаления сборки", e);
+                        Platform.runLater(() -> {
+                            Alert errorAlert = new Alert(Alert.AlertType.ERROR, "Ошибка удаления: " + e.getMessage());
+                            errorAlert.showAndWait();
+                        });
+                    }
+                }, "InstanceDeleter-Thread").start();
             }
         });
     }
@@ -335,9 +379,10 @@ public class InstanceView extends VBox {
                     Desktop.getDesktop().open(folder);
                 }
             } catch (Exception e) {
-                Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Не удалось открыть папку").show());
+                LogSystem.error("[InstanceView] Ошибка открытия папки сборки", e);
+                Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Не удалось открыть папку: " + e.getMessage()).show());
             }
-        }).start();
+        }, "FolderOpener-Thread").start();
     }
 
     private void loadConfig() {
@@ -376,7 +421,9 @@ public class InstanceView extends VBox {
                 img = new Image(is);
             }
             iv.setImage(img);
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { 
+            LogSystem.error("[InstanceView] Ошибка обновления поля конфига", e);
+        }
         return iv;
     }
 

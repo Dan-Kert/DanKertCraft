@@ -215,7 +215,7 @@ public class InstallWindow {
 
         new Thread(() -> {
             try {
-                allVersions = new GameInstaller(workDir).getAllVersionIds();
+                allVersions = md.dankert.dankertcraft.core.GameInstaller.getInstance(workDir).getAllVersionIds();
                 Platform.runLater(() -> {
                     updateVersionList("");
                     validate.run();
@@ -223,7 +223,7 @@ public class InstallWindow {
             } catch (Exception e) {
                 Platform.runLater(() -> versionList.setPlaceholder(new Label(t("error.connection"))));
             }
-        }).start();
+        }, "VersionLoader-Thread").start();
 
         installBtn.setOnAction(e -> {
             String ver = versionList.getSelectionModel().getSelectedItem();
@@ -279,6 +279,9 @@ public class InstallWindow {
             md.dankert.dankertcraft.config.ConfigManager.getInstance().setUsername(nick);
             launcherUI.refreshGamesGrid();
 
+            // Получаем singleton GameInstaller
+            md.dankert.dankertcraft.core.GameInstaller installer = md.dankert.dankertcraft.core.GameInstaller.getInstance(workDir);
+            
             DownloadTask task = new DownloadTask("dummy", new File(workDir, "temp")) {
                 @Override protected Void call() throws Exception {
                     VanillaManager vm = new VanillaManager(workDir);
@@ -292,8 +295,16 @@ public class InstallWindow {
                     return null;
                 }
             };
+            
+            task.setInstaller(installer); // Привязываем installer для поддержки отмены
             launcherUI.getDownloadStatusBar().start(LanguageStrings.get("install") + ": " + name, task);
-            new Thread(task).start();
+            
+            Thread downloadThread = new Thread(task, "InstallThread-" + name);
+            downloadThread.setUncaughtExceptionHandler((t, e) -> {
+                LogSystem.error("[" + t.getName() + "] Ошибка во время загрузки", e);
+                Platform.runLater(() -> launcherUI.getDownloadStatusBar().hideBar());
+            });
+            downloadThread.start();
         } catch (Exception ex) { LogSystem.error(ex.getMessage()); }
     }
 

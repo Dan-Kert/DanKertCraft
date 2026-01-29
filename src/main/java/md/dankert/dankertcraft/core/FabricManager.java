@@ -11,7 +11,7 @@ public class FabricManager {
     private final Gson gson = new Gson();
 
     public FabricManager(String workDir) {
-        this.installer = new GameInstaller(workDir);
+        this.installer = GameInstaller.getInstance(workDir);
     }
 
     /**

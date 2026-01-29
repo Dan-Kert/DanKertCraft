@@ -21,7 +21,7 @@ public class VanillaManager {
 
     public VanillaManager(String workDir) {
         this.workDir = workDir;
-        this.installer = new GameInstaller(workDir);
+        this.installer = GameInstaller.getInstance(workDir);
     }
 
     public VersionData prepare(String version, ProgressListener listener) throws IOException {
