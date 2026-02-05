@@ -16,10 +16,10 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 /**
- * BuildExporter v2 - экспортирует и импортирует сборки в формате .dankertcraft (ZIP)
+ * BuildService - экспортирует и импортирует сборки в формате .dankertcraft (ZIP)
  * Содержит всю информацию о сборке включая моды, сохранения и конфигурацию
  */
-public class BuildExporterV2 {
+public class BuildService {
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     
     public static class BuildConfig {
@@ -54,7 +54,7 @@ public class BuildExporterV2 {
             File instanceJson = new File(instanceDir, "instance.json");
             
             if (!instanceJson.exists()) {
-                LogService.error("[BuildExporter] Файл конфига сборки не найден: " + instanceJson.getPath());
+                LogService.error("[BuildService] Файл конфига сборки не найден: " + instanceJson.getPath());
                 return null;
             }
             
@@ -144,11 +144,11 @@ public class BuildExporterV2 {
                 }
             }
             
-            LogService.info("[BuildExporter] Сборка экспортирована: " + exportFile.getPath());
+            LogService.info("[BuildService] Сборка экспортирована: " + exportFile.getPath());
             return exportFile;
             
         } catch (Exception e) {
-            LogService.error("[BuildExporter] Ошибка при экспорте: " + e.getMessage(), e);
+            LogService.error("[BuildService] Ошибка при экспорте: " + e.getMessage(), e);
             return null;
         }
     }
@@ -159,7 +159,7 @@ public class BuildExporterV2 {
     public static boolean importBuildFromZip(String workDir, File zipFile) {
         try {
             if (!zipFile.exists() || !zipFile.getName().endsWith(".dankertcraft")) {
-                LogService.error("[BuildExporter] Неверный формат файла: " + zipFile.getName());
+                LogService.error("[BuildService] Неверный формат файла: " + zipFile.getName());
                 return false;
             }
             
@@ -188,7 +188,7 @@ public class BuildExporterV2 {
             }
             
             if (buildName == null) {
-                LogService.error("[BuildExporter] Не найден конфиг сборки в архиве");
+                LogService.error("[BuildService] Не найден конфиг сборки в архиве");
                 return false;
             }
             
@@ -232,14 +232,14 @@ public class BuildExporterV2 {
                     try {
                         java.nio.file.Files.move(from.toPath(), to.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     } catch (Exception ex) {
-                        LogService.error("[BuildExporter] Не удалось переместить иконку: " + ex.getMessage());
+                        LogService.error("[BuildService] Не удалось переместить иконку: " + ex.getMessage());
                     }
                 }
             }
             
-            LogService.info("[BuildExporter] Сборка импортирована: " + buildName);
-            LogService.info("[BuildExporter] Директория: " + instanceDir.getPath());
-            LogService.info("[BuildExporter] Включены: сохранения, моды, конфигурация");
+            LogService.info("[BuildService] Сборка импортирована: " + buildName);
+            LogService.info("[BuildService] Директория: " + instanceDir.getPath());
+            LogService.info("[BuildService] Включены: сохранения, моды, конфигурация");
 
             // После импорта — пытаемся инициировать загрузку недостающих пакетов в фоне
             try {
@@ -254,27 +254,27 @@ public class BuildExporterV2 {
                         final String t = type;
                         new Thread(() -> {
                             try {
-                                md.dankert.dankertcraft.core.VanillaManager vm = new md.dankert.dankertcraft.core.VanillaManager(workDir);
-                                vm.prepare(v, null);
+                                MinecraftInstaller installer = MinecraftInstaller.getInstance(workDir);
+                                VersionData data = installer.install(v, MinecraftInstaller.InstallType.VANILLA, null);
                                 if ("Fabric".equalsIgnoreCase(t)) {
-                                    md.dankert.dankertcraft.core.FabricManager fm = new md.dankert.dankertcraft.core.FabricManager(workDir);
+                                    FabricManager fm = new FabricManager(workDir);
                                     fm.prepare(v);
                                 }
-                                LogService.info("[BuildExporter] Фоновые загрузки пакетов для " + v + " завершены (или инициированы)");
+                                LogService.info("[BuildService] Фоновые загрузки пакетов для " + v + " завершены (или инициированы)");
                             } catch (Exception ex) {
-                                LogService.error("[BuildExporter] Ошибка фоновой загрузки пакетов: " + ex.getMessage());
+                                LogService.error("[BuildService] Ошибка фоновой загрузки пакетов: " + ex.getMessage());
                             }
                         }).start();
                     }
                 }
             } catch (Exception ex) {
-                LogService.error("[BuildExporter] Ошибка при запуске фоновой загрузки: " + ex.getMessage());
+                LogService.error("[BuildService] Ошибка при запуске фоновой загрузки: " + ex.getMessage());
             }
 
             return true;
             
         } catch (Exception e) {
-            LogService.error("[BuildExporter] Ошибка при импорте: " + e.getMessage(), e);
+            LogService.error("[BuildService] Ошибка при импорте: " + e.getMessage(), e);
             return false;
         }
     }

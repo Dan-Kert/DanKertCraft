@@ -7,11 +7,11 @@ import md.dankert.dankertcraft.utils.NetworkService;
 import java.io.IOException;
 
 public class FabricManager {
-    private final GameInstaller installer;
+    private final String workDir;
     private final Gson gson = new Gson();
 
     public FabricManager(String workDir) {
-        this.installer = GameInstaller.getInstance(workDir);
+        this.workDir = workDir;
     }
 
     /**

@@ -12,8 +12,7 @@ import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.core.FabricManager;
-import md.dankert.dankertcraft.core.GameInstaller;
-import md.dankert.dankertcraft.core.VanillaManager;
+import md.dankert.dankertcraft.core.MinecraftInstaller;
 import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;
@@ -216,7 +215,7 @@ public class InstallWindow {
 
         new Thread(() -> {
             try {
-                allVersions = md.dankert.dankertcraft.core.GameInstaller.getInstance(workDir).getAllVersionIds();
+                allVersions = md.dankert.dankertcraft.core.MinecraftInstaller.getInstance(workDir).getAllVersionIds();
                 Platform.runLater(() -> {
                     updateVersionList("");
                     validate.run();
@@ -280,18 +279,17 @@ public class InstallWindow {
             md.dankert.dankertcraft.config.ConfigManager.getInstance().setUsername(nick);
             // Не обновляем грид сейчас — иконка должна появиться только после успешного завершения загрузки
             
-            md.dankert.dankertcraft.core.GameInstaller installer = md.dankert.dankertcraft.core.GameInstaller.getInstance(workDir);
+            md.dankert.dankertcraft.core.MinecraftInstaller installer = md.dankert.dankertcraft.core.MinecraftInstaller.getInstance(workDir);
 
             DownloadTask task = new DownloadTask("dummy", new File(workDir, "temp")) {
                 @Override protected Void call() throws Exception {
-                    md.dankert.dankertcraft.core.InstallationService.Type type = currentCategory.equals("Fabric") ? md.dankert.dankertcraft.core.InstallationService.Type.FABRIC : md.dankert.dankertcraft.core.InstallationService.Type.VANILLA;
-                    md.dankert.dankertcraft.core.InstallationService svc = new md.dankert.dankertcraft.core.InstallationService(workDir);
+                    md.dankert.dankertcraft.core.MinecraftInstaller.InstallType type = currentCategory.equals("Fabric") ? md.dankert.dankertcraft.core.MinecraftInstaller.InstallType.FABRIC : md.dankert.dankertcraft.core.MinecraftInstaller.InstallType.VANILLA;
 
-                    // Подготовка версии (скачивание JSON/JAR/библиотек/ассетов)
-                    svc.prepareVersion(ver, type, this);
+                    // Установка версии (скачивание JSON/JAR/библиотек/ассетов + Fabric если нужен)
+                    VersionData data = installer.install(ver, type, this);
 
                     // Установка/получение пути к Java
-                    String javaPath = svc.setupJavaRuntime(ver, this);
+                    String javaPath = installer.setupJavaRuntime(ver, this);
 
                     // Нормализуем пути для JSON: используем forward slashes для portability, но на Windows оставляем как есть
                     String normalizedJavaPath = javaPath;
@@ -339,7 +337,7 @@ public class InstallWindow {
         javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
         fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("DanKertCraft Builds", "*.dankertcraft"));
         File f = fc.showOpenDialog(parent);
-        if (f != null && md.dankert.dankertcraft.core.BuildExporterV2.importBuildFromZip(workDir, f)) {
+        if (f != null && md.dankert.dankertcraft.core.BuildService.importBuildFromZip(workDir, f)) {
             launcherUI.refreshGamesGrid();
         }
     }

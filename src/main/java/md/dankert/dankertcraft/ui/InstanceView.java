@@ -431,7 +431,7 @@ public class InstanceView extends VBox {
     }
 
     private void exportBuild() {
-        File exportFile = md.dankert.dankertcraft.core.BuildExporterV2.exportBuildAsZip(workDir, instanceName);
+        File exportFile = md.dankert.dankertcraft.core.BuildService.exportBuildAsZip(workDir, instanceName);
         if (exportFile != null) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle(t("notification.export.success"));

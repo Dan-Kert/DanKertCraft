@@ -2,7 +2,7 @@ package md.dankert.dankertcraft.ui;
 
 import javafx.concurrent.Task;
 import md.dankert.dankertcraft.core.ProgressListener;
-import md.dankert.dankertcraft.core.GameInstaller;
+import md.dankert.dankertcraft.core.MinecraftInstaller;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -11,7 +11,7 @@ import java.net.URL;
 public class DownloadTask extends Task<Void> implements ProgressListener {
     private final String url;
     private final File destination;
-    private GameInstaller installer; // Ссылка на installer для поддержки отмены
+    private MinecraftInstaller installer; // Ссылка на installer для поддержки отмены
 
     private volatile boolean paused = false;
 
@@ -30,7 +30,7 @@ public class DownloadTask extends Task<Void> implements ProgressListener {
         this.destination = destination;
     }
 
-    public void setInstaller(GameInstaller installer) {
+    public void setInstaller(MinecraftInstaller installer) {
         this.installer = installer;
     }
 
