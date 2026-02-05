@@ -11,7 +11,7 @@ import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 
 import java.io.File;
@@ -21,7 +21,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.function.Consumer;
 
 public class IconSelector extends Stage {
-    private final String customIconsDir = OSHelper.getWorkingDirectory() + "/custom_icons";
+    private final String customIconsDir = SystemContext.getWorkingDirectory() + "/custom_icons";
     private final TilePane tilePane = new TilePane();
     private final Consumer<String> onSelect;
     

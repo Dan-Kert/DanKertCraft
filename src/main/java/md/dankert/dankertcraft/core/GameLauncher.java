@@ -246,7 +246,7 @@ public class GameLauncher {
                 
                 // ВОССТАНОВЛЕНИЕ: если критические библиотеки отсутствуют, пытаемся восстановить
                 LogService.info("[GameLauncher] 🔧 Проверка критических библиотек Java...");
-                if (!FallbackJavaResolver.ensureRequiredLibs(javaLibDir)) {
+                if (!JavaService.ensureRequiredLibs(javaLibDir)) {
                     LogService.info("[GameLauncher] ⚠ Некоторые библиотеки не удалось восстановить");
                 }
                 

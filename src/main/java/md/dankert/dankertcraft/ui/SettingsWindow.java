@@ -12,7 +12,7 @@ import javafx.stage.Stage;
 import md.dankert.dankertcraft.config.ConfigManager;
 import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
-import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.SystemContext;
 
 import java.io.File;
 
@@ -54,7 +54,7 @@ public class SettingsWindow {
                 Bindings.concat("🎨 ", LanguageStrings.textProperty("settings.assets")),
                 LanguageStrings.textProperty("settings.assets.desc"),
                 createCleanButton("button.delete.assets", () -> {
-                    deleteDirectory(new File(OSHelper.getWorkingDirectory(), "assets"));
+                    deleteDirectory(new File(SystemContext.getWorkingDirectory(), "assets"));
                     showNotification(LanguageStrings.get("notification.assets.deleted"));
                 })
         );
@@ -64,7 +64,7 @@ public class SettingsWindow {
                 Bindings.concat("☕ ", LanguageStrings.textProperty("settings.java")),
                 LanguageStrings.textProperty("settings.java.desc"),
                 createCleanButton("button.delete.java", () -> {
-                    deleteDirectory(new File(OSHelper.getWorkingDirectory(), "runtime"));
+                    deleteDirectory(new File(SystemContext.getWorkingDirectory(), "runtime"));
                     showNotification(LanguageStrings.get("notification.java.deleted"));
                 })
         );

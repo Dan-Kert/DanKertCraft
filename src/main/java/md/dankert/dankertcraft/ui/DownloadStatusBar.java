@@ -12,7 +12,7 @@ import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.animation.TranslateTransition;
 import javafx.util.Duration;
-import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.File;
 
@@ -215,7 +215,7 @@ public class DownloadStatusBar extends HBox {
 
     private void deletePartialDownloads() {
         // Удаляем временные файлы Java Runtime если они есть
-        String workDir = OSHelper.getWorkingDirectory();
+        String workDir = SystemContext.getWorkingDirectory();
         new Thread(() -> {
             try {
                 File runtimeDir = new File(workDir, "runtime");

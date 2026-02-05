@@ -1,7 +1,5 @@
 package md.dankert.dankertcraft.utils;
 
-import md.dankert.dankertcraft.platform.PlatformHelper;
-
 /**
  * Глобальный обработчик необработанных исключений
  * Гарантирует, что все ошибки будут залогированы в файл
@@ -62,7 +60,8 @@ public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
             LogService.info("[Diagnostic] ОС: " + System.getProperty("os.name"));
             LogService.info("[Diagnostic] Версия ОС: " + System.getProperty("os.version"));
             LogService.info("[Diagnostic] Архитектура: " + System.getProperty("os.arch"));
-            LogService.info("[Diagnostic] Платформа: " + PlatformHelper.getCurrentOS());
+            String os = SystemContext.getCurrentOS().toString();
+            LogService.info("[Diagnostic] Платформа: " + os);
             
             // Java
             LogService.info("[Diagnostic] Java версия: " + System.getProperty("java.version"));

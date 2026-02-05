@@ -69,7 +69,7 @@ public class JavaService {
     public String installJavaRuntime(int version) throws IOException {
         File targetDir = new File(workDir, "runtime/java" + version);
         installJava(version, targetDir, null);
-        return new File(targetDir, "bin/" + PlatformHelper.getJavaExecutableName()).getAbsolutePath();
+        return new File(targetDir, "bin/" + SystemContext.getJavaExecutableName()).getAbsolutePath();
     }
 
     private void installJava(int version, File targetDir, ProgressListener listener) throws IOException {
@@ -224,6 +224,39 @@ public class JavaService {
             }
         }
 
+        LogService.error("[JavaService] ✗ Не удалось найти " + libName);
+        return false;
+    }
+
+    private static String[] getCommonLibraryPaths(String libName) {
+        if (SystemContext.isWindows()) {
+            return new String[]{
+                "C:\\Windows\\System32\\" + libName,
+                "C:\\Program Files\\Java\\jdk-17\\lib\\" + libName
+            };
+        } else if (SystemContext.isMac()) {
+            return new String[]{
+                "/usr/local/opt/openjdk@17/lib/" + libName,
+                "/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home/lib/" + libName
+            };
+        } else {
+            return new String[]{
+                "/usr/lib/jvm/java-17-openjdk-amd64/lib/" + libName,
+                "/usr/lib/jvm/java-17-openjdk-amd64/lib/server/" + libName,
+                "/usr/lib/jvm/java-17-openjdk/lib/" + libName,
+                "/usr/lib/jvm/java-17-openjdk/lib/server/" + libName,
+                "/usr/lib/jvm/default/lib/" + libName,
+                "/usr/lib/jvm/default/lib/server/" + libName,
+                "/usr/lib/x86_64-linux-gnu/" + libName,
+                "/usr/lib64/" + libName,
+                "/lib/x86_64-linux-gnu/" + libName,
+                "/usr/lib/jvm/java-17-openjdk-arm64/lib/" + libName,
+                "/usr/lib/jvm/java-17-openjdk-arm64/lib/server/" + libName,
+                "/usr/lib/aarch64-linux-gnu/" + libName
+            };
+        }
+    }
+
     private static boolean ensureConfig(String javaLibDir, String configName) {
         File libDir = new File(javaLibDir);
         File configFile = new File(libDir, configName);
@@ -250,30 +283,4 @@ public class JavaService {
 
         LogService.error("[JavaService] ✗ Не удалось найти " + configName);
         return false;
-        if (SystemContext.isWindows()) {
-            return new String[]{
-                "C:\\Windows\\System32\\" + libName,
-                "C:\\Program Files\\Java\\jdk-17\\lib\\" + libName
-            };
-        } else if (SystemContext.isMac()) {
-            return new String[]{
-                "/usr/local/opt/openjdk@17/lib/" + libName,
-                "/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home/lib/" + libName
-            };
-        } else {
-            return new String[]{
-                "/usr/lib/jvm/java-17-openjdk-amd64/lib/" + libName,
-                "/usr/lib/jvm/java-17-openjdk-amd64/lib/server/" + libName,
-                "/usr/lib/jvm/java-17-openjdk/lib/" + libName,
-                "/usr/lib/jvm/java-17-openjdk/lib/server/" + libName,
-                "/usr/lib/jvm/default/lib/" + libName,
-                "/usr/lib/jvm/default/lib/server/" + libName,
-                "/usr/lib/x86_64-linux-gnu/" + libName,
-                "/usr/lib64/" + libName,
-                "/lib/x86_64-linux-gnu/" + libName,
-                "/usr/lib/jvm/java-17-openjdk-arm64/lib/" + libName,
-                "/usr/lib/jvm/java-17-openjdk-arm64/lib/server/" + libName,
-                "/usr/lib/aarch64-linux-gnu/" + libName
-            };
-    }
-}
+    }}

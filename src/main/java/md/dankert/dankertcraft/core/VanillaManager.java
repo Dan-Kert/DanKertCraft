@@ -1,9 +1,9 @@
 package md.dankert.dankertcraft.core;
 
 import com.google.gson.Gson;
-import md.dankert.dankertcraft.utils.OSHelper;
 import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
+import md.dankert.dankertcraft.utils.SystemContext;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -51,8 +51,8 @@ public class VanillaManager {
         LogService.info("[VanillaManager] 🔍 Требуется Java " + requiredVer + " для Minecraft " + mcVersion);
         
         try {
-            CrossPlatformJavaInstaller installer = new CrossPlatformJavaInstaller(workDir, listener);
-            return installer.installJavaRuntime(requiredVer);
+            JavaService javaService = new JavaService(workDir);
+            return javaService.installJavaRuntime(requiredVer);
         } catch (Exception e) {
             LogService.error("[VanillaManager] ❌ Ошибка при установке Java: " + e.getMessage(), e);
             LogService.warn("[VanillaManager] ⚠️  Пытаемся использовать системную Java...");
@@ -68,8 +68,8 @@ public class VanillaManager {
         LogService.info("[VanillaManager] 🔧 Используем явно указанную Java версию: " + requiredVer);
         
         try {
-            CrossPlatformJavaInstaller installer = new CrossPlatformJavaInstaller(workDir, listener);
-            return installer.installJavaRuntime(requiredVer);
+            JavaService javaService = new JavaService(workDir);
+            return javaService.installJavaRuntime(requiredVer);
         } catch (Exception e) {
             LogService.error("[VanillaManager] ❌ Ошибка при установке Java " + requiredVer + ": " + e.getMessage(), e);
             LogService.warn("[VanillaManager] ⚠️  Пытаемся использовать системную Java...");
@@ -139,7 +139,7 @@ public class VanillaManager {
                     try (FileOutputStream fos = new FileOutputStream(outFile)) {
                         zis.transferTo(fos);
                     }
-                    if (!OSHelper.isWindows()) {
+                    if (!SystemContext.isWindows()) {
                         outFile.setExecutable(true, false);
                         outFile.setReadable(true, false);
                     }

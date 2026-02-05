@@ -15,7 +15,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
-import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 
 import java.io.File;
@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 
 public class Sidebar extends VBox {
 
-    private final String workDir = OSHelper.getWorkingDirectory();
+    private final String workDir = SystemContext.getWorkingDirectory();
     private final VBox instancesContainer = new VBox(15);
     private final Consumer<String> onInstanceClick;
     private long pressStartTime;

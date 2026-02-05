@@ -11,7 +11,7 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.NetworkService;
 import md.dankert.dankertcraft.utils.InstanceConfigHelper;
 import md.dankert.dankertcraft.utils.LanguageStrings;
@@ -41,7 +41,7 @@ public class ModWindow {
     public ModWindow(String instanceName, String instanceType) {
         this.instanceName = instanceName;
         this.loaderType = instanceType;
-        String workDir = OSHelper.getWorkingDirectory();
+        String workDir = SystemContext.getWorkingDirectory();
         this.modsPath = workDir + File.separator + "instances" + File.separator + instanceName + File.separator + "mods";
         
         // Читаем версию из конфига инстанса
