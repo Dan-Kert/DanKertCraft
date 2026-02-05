@@ -64,7 +64,7 @@ public class FabricManager {
 
         // 3. Скачиваем библиотеки Fabric (интермедиар, лоадер и т.д.)
         LogService.info("[Fabric] Скачивание библиотек Fabric...");
-        installer.downloadLibraries(fabricData);
+        MinecraftInstaller.getInstance(workDir).downloadLibraries(fabricData);
 
         return fabricData;
     }

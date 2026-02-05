@@ -13,6 +13,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.core.FabricManager;
 import md.dankert.dankertcraft.core.MinecraftInstaller;
+import md.dankert.dankertcraft.core.VersionData;
 import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;

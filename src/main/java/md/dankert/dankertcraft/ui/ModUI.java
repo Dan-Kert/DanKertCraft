@@ -12,6 +12,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.ui.Themes;
 import md.dankert.dankertcraft.utils.LanguageStrings;
+import md.dankert.dankertcraft.mods.ModrinthService;
 
 import java.io.File;
 import java.util.List;
@@ -113,13 +114,13 @@ public class ModUI {
             resultsList.getChildren().add(new Label(t("label.searching")));
 
             new Thread(() -> {
-                List<md.dankert.dankertcraft.mods.ModModels.ModHit> hits = md.dankert.dankertcraft.mods.ModAPI.searchMods(query, mcVersion);
+                List<ModrinthService.ModHit> hits = ModrinthService.searchMods(query, mcVersion);
                 Platform.runLater(() -> {
                     resultsList.getChildren().clear();
                     if (hits.isEmpty()) {
                         resultsList.getChildren().add(new Label(t("label.not.found") + mcVersion));
                     } else {
-                        for (md.dankert.dankertcraft.mods.ModModels.ModHit hit : hits) {
+                        for (ModrinthService.ModHit hit : hits) {
                             resultsList.getChildren().add(createModCard(hit));
                         }
                     }
@@ -130,7 +131,7 @@ public class ModUI {
         root.getChildren().addAll(searchBar, scrollPane);
     }
 
-    private HBox createModCard(md.dankert.dankertcraft.mods.ModModels.ModHit hit) {
+    private HBox createModCard(ModrinthService.ModHit hit) {
         HBox card = new HBox(15);
         card.setPadding(new Insets(10));
         card.setStyle("-fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 8; -fx-background-color: " + Themes.Colors.BG_SECONDARY + ";");
@@ -159,7 +160,7 @@ public class ModUI {
             installBtn.setText(t("label.downloading"));
 
             new Thread(() -> {
-                String link = md.dankert.dankertcraft.mods.ModAPI.getBestLink(hit.project_id, mcVersion);
+                String link = ModrinthService.getBestDownloadLink(hit.project_id, mcVersion);
                 if (link != null) {
                     try {
                         File modsDir = new File(instanceFolder, "mods");

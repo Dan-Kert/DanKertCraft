@@ -15,8 +15,8 @@ import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.NetworkService;
 import md.dankert.dankertcraft.utils.InstanceConfigHelper;
 import md.dankert.dankertcraft.utils.LanguageStrings;
-import md.dankert.dankertcraft.mods.ModrinthAPI;
-import md.dankert.dankertcraft.mods.ModrinthAPI.ModInfo;
+import md.dankert.dankertcraft.mods.ModrinthService;
+import md.dankert.dankertcraft.mods.ModrinthService.ModInfo;
 import java.io.File;
 import java.awt.Desktop;
 import java.nio.file.Files;
@@ -279,8 +279,8 @@ public class ModWindow {
         new Thread(() -> {
             try {
                 LogService.info("[ModWindow] Начало поиска: " + query);
-                ModrinthAPI api = new ModrinthAPI();
-                List<ModInfo> results = api.searchMods(query.trim(), gameVersion, loaderType);
+                ModrinthService api = new ModrinthService();
+                List<ModInfo> results = api.searchModsAdvanced(query.trim(), gameVersion, loaderType);
 
                 Platform.runLater(() -> {
                     modrinthList.getItems().clear();
@@ -326,7 +326,7 @@ public class ModWindow {
 
         new Thread(() -> {
             try {
-                ModrinthAPI api = new ModrinthAPI();
+                ModrinthService api = new ModrinthService();
                 String downloadUrl = api.getLatestDownloadUrl(mod.id, gameVersion, loaderType);
 
                 if (downloadUrl == null) {

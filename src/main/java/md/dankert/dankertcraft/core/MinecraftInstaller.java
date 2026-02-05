@@ -165,6 +165,13 @@ public class MinecraftInstaller {
     }
 
     /**
+     * Alias для install() - используется GameLauncher для совместимости.
+     */
+    public VersionData prepare(String version, ProgressListener listener) throws IOException {
+        return install(version, InstallType.VANILLA, listener);
+    }
+
+    /**
      * Скачивание всех файлов игры: JSON манифест, JAR, библиотеки и ассеты.
      */
     private VersionData downloadGameFiles(String version) throws IOException {
@@ -232,7 +239,7 @@ public class MinecraftInstaller {
 
     // --- LIBRARY & ASSET MANAGEMENT ---
 
-    private void downloadLibraries(VersionData data) {
+    public void downloadLibraries(VersionData data) {
         if (data.libraries == null) return;
 
         ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -390,6 +397,23 @@ public class MinecraftInstaller {
         try {
             JavaService javaService = new JavaService(workDir);
             return javaService.installJavaRuntime(requiredVer);
+        } catch (Exception e) {
+            LogService.error("[MinecraftInstaller] ❌ Ошибка при установке Java: " + e.getMessage(), e);
+            LogService.warn("[MinecraftInstaller] ⚠️  Пытаемся использовать системную Java...");
+            return "java";
+        }
+    }
+
+    public String setupJavaRuntime(String mcVersion, String javaVersion, ProgressListener listener) {
+        if (javaVersion == null || javaVersion.equals("Auto")) {
+            return setupJavaRuntime(mcVersion, listener);
+        }
+        
+        try {
+            int version = Integer.parseInt(javaVersion);
+            LogService.info("[MinecraftInstaller] 🔍 Установка явно указанной Java " + version);
+            JavaService javaService = new JavaService(workDir);
+            return javaService.installJavaRuntime(version);
         } catch (Exception e) {
             LogService.error("[MinecraftInstaller] ❌ Ошибка при установке Java: " + e.getMessage(), e);
             LogService.warn("[MinecraftInstaller] ⚠️  Пытаемся использовать системную Java...");

@@ -52,7 +52,7 @@ public class GameLauncher {
             mcVersion = instanceName.split("-")[0];
         }
 
-        VanillaManager vanilla = new VanillaManager(workDir);
+        MinecraftInstaller installer = MinecraftInstaller.getInstance(workDir);
         FabricManager fabric = new FabricManager(workDir);
 
         // 2. ПОДГОТОВКА ДВИЖКА И JAVA (ИСПРАВЛЕНО: Добавлен listener)
@@ -60,7 +60,7 @@ public class GameLauncher {
         if (listener != null) listener.onProgress("Проверка файлов игры", 0, 100, 0);
         VersionData vanillaData = null;
         try {
-            vanillaData = vanilla.prepare(mcVersion, listener);
+            vanillaData = installer.prepare(mcVersion, listener);
         } catch (Exception e) {
             LogService.error("[GameLauncher] Не удалось загрузить файлы: " + e.getMessage());
             // Пытаемся использовать локальные файлы если они есть
@@ -80,9 +80,9 @@ public class GameLauncher {
         try {
             // Если явно указана версия Java в конфиге, используем её
             if (javaVersion != null && !javaVersion.equals("Auto")) {
-                javaExec = vanilla.setupJavaRuntime(mcVersion, javaVersion, listener);
+                javaExec = installer.setupJavaRuntime(mcVersion, javaVersion, listener);
             } else {
-                javaExec = vanilla.setupJavaRuntime(mcVersion, listener);
+                javaExec = installer.setupJavaRuntime(mcVersion, listener);
             }
             
             // ВАЛИДАЦИЯ Java
@@ -103,22 +103,22 @@ public class GameLauncher {
 
         if (!isModern && !isFabric) {
             fullClasspath.add(clientJar.getAbsolutePath());
-            fullClasspath.addAll(vanilla.getLibrariesPaths(vanillaData));
+            fullClasspath.addAll(installer.getLibrariesPaths(vanillaData));
         } else {
-            fullClasspath.addAll(vanilla.getClasspath(vanillaData, mcVersion));
+            fullClasspath.addAll(installer.getClasspath(vanillaData, mcVersion));
         }
 
         VersionData launchData = vanillaData;
         if (isFabric) {
             if (listener != null) listener.onProgress("Загрузка Fabric", 50, 100, 0);
             launchData = fabric.prepare(mcVersion); // Если FabricManager обновите, добавьте listener и сюда
-            fullClasspath.addAll(vanilla.getLibrariesPaths(launchData));
+            fullClasspath.addAll(installer.getLibrariesPaths(launchData));
         }
 
         // 3. НАТИВЫ И ИСПРАВЛЕНИЕ ПРАВ
         if (listener != null) listener.onProgress("Распаковка нативов", 90, 100, 0);
         File nativesDir = new File(instanceDir, "natives");
-        vanilla.extractNatives(vanillaData, nativesDir);
+        installer.extractNatives(vanillaData, nativesDir);
         fixNativesPermissions(nativesDir);
 
         String mainClass = determineMainClass(mcVersion, launchData, isFabric);
