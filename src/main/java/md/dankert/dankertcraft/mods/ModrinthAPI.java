@@ -1,10 +1,10 @@
 package md.dankert.dankertcraft.mods;
 
 import com.google.gson.Gson;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import md.dankert.dankertcraft.utils.Downloader;
+import md.dankert.dankertcraft.utils.NetworkService;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -52,10 +52,10 @@ public class ModrinthAPI {
                 "&facets=" + encode(facetsJson) +
                 "&limit=20";
 
-        LogSystem.info("[ModrinthAPI] Запрос: " + fullUrl);
+        LogService.info("[ModrinthAPI] Запрос: " + fullUrl);
 
         try {
-            String response = Downloader.downloadToString(fullUrl);
+            String response = NetworkService.downloadToString(fullUrl);
             JsonObject json = gson.fromJson(response, JsonObject.class);
             JsonArray hits = json.getAsJsonArray("hits");
 
@@ -64,7 +64,7 @@ public class ModrinthAPI {
                 if (mod != null) results.add(mod);
             }
         } catch (Exception e) {
-            LogSystem.error("[ModrinthAPI] Ошибка: " + e.getMessage());
+            LogService.error("[ModrinthAPI] Ошибка: " + e.getMessage());
             throw e;
         }
 
@@ -79,7 +79,7 @@ public class ModrinthAPI {
         String url = API_URL + "/project/" + modId + "/version?game_versions=" + gv + "&loaders=" + l;
 
         try {
-            String response = Downloader.downloadToString(url);
+            String response = NetworkService.downloadToString(url);
             JsonArray versions = gson.fromJson(response, JsonArray.class);
 
             if (versions.size() > 0) {
@@ -92,7 +92,7 @@ public class ModrinthAPI {
                 }
             }
         } catch (Exception e) {
-            LogSystem.error("[ModrinthAPI] Ошибка URL: " + e.getMessage());
+            LogService.error("[ModrinthAPI] Ошибка URL: " + e.getMessage());
         }
         return null;
     }

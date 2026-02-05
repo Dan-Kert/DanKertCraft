@@ -10,7 +10,7 @@ import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.config.ConfigManager;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.utils.OSHelper;
 
@@ -27,6 +27,7 @@ public class SettingsWindow {
     public void show() {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
+        md.dankert.dankertcraft.utils.UIHelper.setAppIcon(stage);
 
         // Привязываем заголовок окна
         stage.titleProperty().bind(LanguageStrings.textProperty("settings.title"));

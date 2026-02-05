@@ -2,7 +2,7 @@ package md.dankert.dankertcraft.core;
 
 import md.dankert.dankertcraft.platform.PlatformHelper;
 import md.dankert.dankertcraft.utils.FileDownloadHelper;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 
 import java.io.*;
@@ -40,18 +40,18 @@ public class CrossPlatformJavaInstaller {
      * Возвращает полный путь к java исполняемому файлу
      */
     public String installJavaRuntime(int javaVersion) throws IOException {
-        LogSystem.info("[JavaInstaller] 🔧 Начинаем установку Java " + javaVersion);
+        LogService.info("[JavaInstaller] 🔧 Начинаем установку Java " + javaVersion);
         
         // 1. Создаём директорию
         File javaDir = new File(workDir, "runtime/java" + javaVersion);
         javaDir.mkdirs();
         
-        LogSystem.info("[JavaInstaller] 📁 Целевая директория: " + javaDir.getAbsolutePath());
+        LogService.info("[JavaInstaller] 📁 Целевая директория: " + javaDir.getAbsolutePath());
         
         // 2. Проверяем уже установленную Java
         String javaExePath = getJavaExecutablePath(javaDir);
         if (isJavaValid(javaExePath)) {
-            LogSystem.info("[JavaInstaller] ✅ Java " + javaVersion + " уже установлена");
+            LogService.info("[JavaInstaller] ✅ Java " + javaVersion + " уже установлена");
             return javaExePath;
         }
         
@@ -67,11 +67,11 @@ public class CrossPlatformJavaInstaller {
                 throw new IOException("Java не прошла валидацию после установки");
             }
             
-            LogSystem.info("[JavaInstaller] ✅ Java " + javaVersion + " успешно установлена");
+            LogService.info("[JavaInstaller] ✅ Java " + javaVersion + " успешно установлена");
             return javaExePath;
             
         } catch (Exception e) {
-            LogSystem.error("[JavaInstaller] ❌ Ошибка установки Java: " + e.getMessage(), e);
+            LogService.error("[JavaInstaller] ❌ Ошибка установки Java: " + e.getMessage(), e);
             throw new IOException("Не удалось установить Java " + javaVersion, e);
         }
     }
@@ -90,13 +90,13 @@ public class CrossPlatformJavaInstaller {
         File javaFile = new File(javaExePath);
         
         if (!javaFile.exists()) {
-            LogSystem.debug("[JavaInstaller] Java не существует: " + javaExePath);
+            LogService.debug("[JavaInstaller] Java не существует: " + javaExePath);
             return false;
         }
         
         // На Unix-системах проверяем права выполнения
         if (!PlatformHelper.isWindows() && !javaFile.canExecute()) {
-            LogSystem.debug("[JavaInstaller] Java найдена но не исполняемая");
+            LogService.debug("[JavaInstaller] Java найдена но не исполняемая");
             return false;
         }
         
@@ -107,7 +107,7 @@ public class CrossPlatformJavaInstaller {
             int exitCode = p.waitFor();
             return exitCode == 0;
         } catch (Exception e) {
-            LogSystem.debug("[JavaInstaller] Ошибка при проверке версии Java: " + e.getMessage());
+            LogService.debug("[JavaInstaller] Ошибка при проверке версии Java: " + e.getMessage());
             return false;
         }
     }
@@ -120,8 +120,8 @@ public class CrossPlatformJavaInstaller {
         String fileExtension = PlatformHelper.isWindows() ? ".zip" : ".tar.gz";
         File tempFile = new File(workDir, "java_" + javaVersion + "_temp" + fileExtension);
         
-        LogSystem.info("[JavaInstaller] ⬇️  Загружаем Java " + javaVersion);
-        LogSystem.info("[JavaInstaller] 📥 URL: " + downloadUrl);
+        LogService.info("[JavaInstaller] ⬇️  Загружаем Java " + javaVersion);
+        LogService.info("[JavaInstaller] 📥 URL: " + downloadUrl);
         
         try {
             // Загружаем архив
@@ -137,14 +137,14 @@ public class CrossPlatformJavaInstaller {
                 });
             
             // Распаковываем в зависимости от платформы
-            LogSystem.info("[JavaInstaller] 📦 Распаковка архива...");
+            LogService.info("[JavaInstaller] 📦 Распаковка архива...");
             extractArchive(tempFile, targetDir);
             
         } finally {
             // Удаляем временный файл
             if (tempFile.exists()) {
                 tempFile.delete();
-                LogSystem.debug("[JavaInstaller] Временный файл удалён");
+                LogService.debug("[JavaInstaller] Временный файл удалён");
             }
         }
     }
@@ -164,7 +164,7 @@ public class CrossPlatformJavaInstaller {
      * Распаковать ZIP архив (Windows)
      */
     private void extractZipArchive(File zipFile, File targetDir) throws IOException {
-        LogSystem.info("[JavaInstaller] 📦 Распаковка ZIP (Windows)...");
+        LogService.info("[JavaInstaller] 📦 Распаковка ZIP (Windows)...");
         
         try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
             ZipEntry entry;
@@ -199,14 +199,14 @@ public class CrossPlatformJavaInstaller {
             }
         }
         
-        LogSystem.info("[JavaInstaller] ✅ ZIP распакована успешно");
+        LogService.info("[JavaInstaller] ✅ ZIP распакована успешно");
     }
     
     /**
      * Распаковать TAR.GZ архив (Linux/macOS)
      */
     private void extractTarGzArchive(File tarGzFile, File targetDir) throws IOException {
-        LogSystem.info("[JavaInstaller] 📦 Распаковка TAR.GZ (Linux/macOS)...");
+        LogService.info("[JavaInstaller] 📦 Распаковка TAR.GZ (Linux/macOS)...");
         
         try {
             ProcessBuilder pb = new ProcessBuilder(
@@ -223,7 +223,7 @@ public class CrossPlatformJavaInstaller {
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String line;
             while ((line = reader.readLine()) != null) {
-                LogSystem.debug("[JavaInstaller] tar: " + line);
+                LogService.debug("[JavaInstaller] tar: " + line);
             }
             
             int exitCode = process.waitFor();
@@ -231,7 +231,7 @@ public class CrossPlatformJavaInstaller {
                 throw new IOException("tar вернул код ошибки: " + exitCode);
             }
             
-            LogSystem.info("[JavaInstaller] ✅ TAR.GZ распакована успешно");
+            LogService.info("[JavaInstaller] ✅ TAR.GZ распакована успешно");
             
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -244,7 +244,7 @@ public class CrossPlatformJavaInstaller {
      */
     private void setExecutablePermissions(String javaExePath) {
         if (PlatformHelper.isWindows()) {
-            LogSystem.debug("[JavaInstaller] Windows: права доступа не требуются");
+            LogService.debug("[JavaInstaller] Windows: права доступа не требуются");
             return;
         }
         
@@ -261,16 +261,16 @@ public class CrossPlatformJavaInstaller {
                 int exitCode = p.waitFor();
                 
                 if (exitCode == 0) {
-                    LogSystem.info("[JavaInstaller] ✅ Права доступа установлены (chmod)");
+                    LogService.info("[JavaInstaller] ✅ Права доступа установлены (chmod)");
                 } else {
-                    LogSystem.warn("[JavaInstaller] ⚠️  chmod вернул код " + exitCode);
+                    LogService.warn("[JavaInstaller] ⚠️  chmod вернул код " + exitCode);
                 }
             } else {
-                LogSystem.info("[JavaInstaller] ✅ Права доступа установлены (Java API)");
+                LogService.info("[JavaInstaller] ✅ Права доступа установлены (Java API)");
             }
             
         } catch (Exception e) {
-            LogSystem.warn("[JavaInstaller] ⚠️  Ошибка при установке прав доступа: " + e.getMessage());
+            LogService.warn("[JavaInstaller] ⚠️  Ошибка при установке прав доступа: " + e.getMessage());
         }
     }
     
@@ -324,7 +324,7 @@ public class CrossPlatformJavaInstaller {
         } else if (arch.contains("x86") || arch.contains("i386")) {
             return "x86";
         } else {
-            LogSystem.warn("[JavaInstaller] ⚠️  Неизвестная архитектура: " + arch + ", используем x64");
+            LogService.warn("[JavaInstaller] ⚠️  Неизвестная архитектура: " + arch + ", используем x64");
             return "x64";
         }
     }

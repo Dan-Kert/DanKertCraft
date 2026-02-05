@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import com.google.gson.JsonObject;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import com.google.gson.JsonParser;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -14,7 +14,11 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.core.GameLauncher;
-import md.dankert.dankertcraft.utils.OSHelper;
+
+// AWT (referenced via fully-qualified names) and ImageIO for tray icon
+import javax.imageio.ImageIO;
+import md.dankert.dankertcraft.utils.SingleInstanceManager;
+import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.config.ConfigManager;
 import md.dankert.dankertcraft.cache.CacheManager;
@@ -26,7 +30,7 @@ import java.nio.file.Files;
 import java.util.Arrays;
 
 public class LauncherUI extends Application {
-    private final String workDir = OSHelper.getWorkingDirectory();
+    private final String workDir = SystemContext.getWorkingDirectory();
     private FlowPane allGamesGrid = new FlowPane();
     private HBox recentGamesBox = new HBox(15);
     private StackPane contentArea = new StackPane();
@@ -86,7 +90,7 @@ public class LauncherUI extends Application {
         if (mainCssUrl != null) {
             scene.getStylesheets().add(mainCssUrl.toExternalForm());
         } else {
-            LogSystem.info("CSS файл не найден: /styles/main.css — используется встроенный CSS");
+            LogService.info("CSS файл не найден: /styles/main.css — используется встроенный CSS");
         }
 
         // 5. Настройка Stage (Окна)
@@ -105,11 +109,33 @@ public class LauncherUI extends Application {
                 if (fallback != null) primaryStage.getIcons().add(new Image(fallback));
             }
         } catch (Exception e) {
-            LogSystem.info("Ошибка загрузки иконки: " + e.getMessage());
+            LogService.info("Ошибка загрузки иконки: " + e.getMessage());
         }
 
         primaryStage.setScene(scene);
+
+        // Не закрываем JVM при закрытии окна — поддерживаем фоновый режим и трей
+        Platform.setImplicitExit(false);
+        primaryStage.setOnCloseRequest(ev -> {
+            // Скрываем окно и остаёмся в фоне, если поддерживается трей
+            ev.consume();
+            primaryStage.hide();
+            LogService.info("[UI] Окно закрыто (скрыто), процесс продолжает работать в фоне");
+        });
+
         primaryStage.show();
+
+        // Инициализируем single-instance командный обработчик и трей
+        SingleInstanceManager.setCommandHandler(cmd -> {
+            if (cmd == null) return;
+            if (cmd.equalsIgnoreCase("show")) {
+                Platform.runLater(() -> primaryStage.show());
+            } else if (cmd.startsWith("launch:")) {
+                String inst = cmd.substring("launch:".length());
+                Platform.runLater(() -> startLaunchThread(inst));
+            }
+        });
+        createSystemTray();
 
         // 6. Финальная загрузка данных в грид
         refreshGamesGrid();
@@ -139,15 +165,21 @@ public class LauncherUI extends Application {
                     Platform.runLater(() -> {
                         LogWindow crashMonitor = new LogWindow(instanceName);
                         crashMonitor.monitor(gameProcess);
-                        // Скрываем окно launcher сразу после запуска игры
-                        primaryStage.hide();
-                        LogSystem.info("[UI] Окно launcher скрыто, игра должна запуститься");
+
+                        // Скрывать окно при запуске игры — только если включена настройка
+                        boolean hideOnLaunch = md.dankert.dankertcraft.config.ConfigManager.getInstance().getBooleanSetting("hide_launcher_on_game_start", false);
+                        if (hideOnLaunch) {
+                            primaryStage.hide();
+                            LogService.info("[UI] Окно launcher скрыто по настройке hide_on_launch");
+                        } else {
+                            LogService.info("[UI] Окно launcher оставлено видимым (hide_on_launch выключен)");
+                        }
                     });
 
                     // Ожидаем завершения игры в отдельном потоке (НЕ в UI)
                     int exitCode = gameProcess.waitFor();
                     
-                    LogSystem.info("[UI] Игра завершила работу с кодом: " + exitCode);
+                    LogService.info("[UI] Игра завершила работу с кодом: " + exitCode);
 
                     // Показываем launcher после завершения игры
                     Platform.runLater(() -> {
@@ -157,10 +189,10 @@ public class LauncherUI extends Application {
                                 "⚠️ Игра закрылась с кодом: " + exitCode + "\n\nПроверьте логи для деталей.").show();
                         }
                         downloadStatusBar.hideBar();
-                        LogSystem.info("[UI] Окно launcher показано снова");
+                        LogService.info("[UI] Окно launcher показано снова");
                     });
                 } catch (Exception ex) {
-                    LogSystem.error("[UI] Критическая ошибка запуска: " + ex.getMessage(), ex);
+                    LogService.error("[UI] Критическая ошибка запуска: " + ex.getMessage(), ex);
                     Platform.runLater(() -> {
                         primaryStage.show();
                         new Alert(Alert.AlertType.ERROR, "❌ Ошибка запуска: " + ex.getMessage()).show();
@@ -235,9 +267,28 @@ public class LauncherUI extends Application {
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(15));
         card.setPrefSize(160, 190);
-        card.getChildren().addAll(createIcon(getIconNameFromInstance(name), 80), new Label(name));
+        card.getChildren().addAll(createIconForInstance(name, 80), new Label(name));
         card.setOnMouseClicked(e -> showInstancePage(name));
         return card;
+    }
+
+    private StackPane createIconForInstance(String instanceName, int size) {
+        String iconName = getIconNameFromInstance(instanceName);
+        ImageView iv = createIcon(iconName, size);
+        StackPane sp = new StackPane(iv);
+        sp.setPrefSize(size, size);
+        sp.setMaxSize(size, size);
+        // Если iconName == null — показываем индикатор загрузки
+        if (iconName == null) {
+            ProgressIndicator pi = new ProgressIndicator();
+            pi.setPrefSize(Math.max(24, size/3), Math.max(24, size/3));
+            Label lbl = new Label(LanguageStrings.get("label.downloading"));
+            lbl.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 11px;");
+            VBox overlay = new VBox(6, pi, lbl);
+            overlay.setAlignment(Pos.CENTER);
+            sp.getChildren().add(overlay);
+        }
+        return sp;
     }
 
     private HBox createRecentMiniCard(String name) {
@@ -264,6 +315,8 @@ public class LauncherUI extends Application {
             File configFile = new File(workDir, "instances/" + instanceName + "/instance.json");
             if (configFile.exists()) {
                 JsonObject json = JsonParser.parseString(Files.readString(configFile.toPath())).getAsJsonObject();
+                boolean downloaded = json.has("downloaded") && json.get("downloaded").getAsBoolean();
+                if (!downloaded) return null; // не показываем иконку пока не скачано полностью
                 if (json.has("icon")) return json.get("icon").getAsString();
             }
         } catch (Exception e) {}
@@ -273,7 +326,14 @@ public class LauncherUI extends Application {
     private ImageView createIcon(String iconName, int size) {
         ImageView iv = new ImageView();
         iv.setFitWidth(size); iv.setFitHeight(size);
+        iv.setPreserveRatio(true);
         try {
+            if (iconName == null) {
+                // Не показываем дефолтную иконку, пока ресурс ещё не скачан
+                iv.setOpacity(0.0);
+                return iv;
+            }
+
             Image img = null;
             if (iconName != null && iconName.startsWith("custom:")) {
                 // Используем File.separator для кроссплатформности
@@ -282,7 +342,7 @@ public class LauncherUI extends Application {
                     try (FileInputStream fis = new FileInputStream(file)) {
                         img = new Image(fis);
                     } catch (Exception e) {
-                        LogSystem.warn("[LauncherUI] Ошибка загрузки кастомной иконки " + iconName + ": " + e.getMessage());
+                        LogService.warn("[LauncherUI] Ошибка загрузки кастомной иконки " + iconName + ": " + e.getMessage());
                     }
                 }
             }
@@ -295,15 +355,96 @@ public class LauncherUI extends Application {
                 if (is != null) {
                     img = new Image(is);
                 } else {
-                    LogSystem.warn("[LauncherUI] Не удалось загрузить ни одну иконку для " + iconName);
+                    LogService.warn("[LauncherUI] Не удалось загрузить ни одну иконку для " + iconName);
                 }
             }
             if (img != null) iv.setImage(img);
         } catch (Exception e) {
-            LogSystem.error("[LauncherUI] Ошибка при загрузке иконки: " + e.getMessage(), e);
+            LogService.error("[LauncherUI] Ошибка при загрузке иконки: " + e.getMessage(), e);
         }
         return iv;
     }
 
-    public static void main(String[] args) { launch(args); }
+    private void createSystemTray() {
+        if (!java.awt.SystemTray.isSupported()) return;
+        try {
+            java.awt.Image trayImg = null;
+            try {
+                var is = getClass().getResourceAsStream("/icons/minecraft.png");
+                if (is != null) trayImg = ImageIO.read(is);
+            } catch (Exception e) {
+                LogService.warn("[Tray] Не удалось загрузить иконку для трея: " + e.getMessage());
+            }
+
+            java.awt.PopupMenu popup = new java.awt.PopupMenu();
+
+            java.awt.MenuItem openItem = new java.awt.MenuItem(LanguageStrings.get("button.open"));
+            openItem.addActionListener(e -> Platform.runLater(() -> primaryStage.show()));
+            popup.add(openItem);
+
+            java.awt.Menu launchMenu = new java.awt.Menu(LanguageStrings.get("menu.launch"));
+            popup.add(launchMenu);
+
+            // Build initial list
+            rebuildTrayLaunchMenu(launchMenu);
+
+            // Обновляем список при наведении (динамически)
+            // java.awt.Menu не поддерживает addActionListener напрямую, поэтому мы обновляем при клике на сам пункт
+            // (fallback - меню будет обновлено при каждом открытии трея)
+
+            popup.addSeparator();
+
+            java.awt.MenuItem exitItem = new java.awt.MenuItem(LanguageStrings.get("button.exit"));
+            exitItem.addActionListener(e -> {
+                LogService.info("[Tray] Выход по нажатию в трее");
+                SingleInstanceManager.stop();
+                Platform.exit();
+                System.exit(0);
+            });
+            popup.add(exitItem);
+
+            java.awt.TrayIcon trayIcon = new java.awt.TrayIcon(trayImg != null ? trayImg : java.awt.Toolkit.getDefaultToolkit().createImage(new byte[0]));
+            trayIcon.setImageAutoSize(true);
+            trayIcon.setPopupMenu(popup);
+            trayIcon.addActionListener(e -> Platform.runLater(() -> primaryStage.show()));
+
+            java.awt.SystemTray.getSystemTray().add(trayIcon);
+        } catch (Exception e) {
+            LogService.warn("[Tray] Не удалось инициализировать system tray: " + e.getMessage());
+        }
+    }
+
+    private void rebuildTrayLaunchMenu(java.awt.Menu launchMenu) {
+        try {
+            launchMenu.removeAll();
+            File instancesDir = new File(workDir, "instances");
+            File[] folders = instancesDir.listFiles(File::isDirectory);
+            if (folders != null) {
+                java.util.Arrays.sort(folders, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+                for (File f : folders) {
+                    java.awt.MenuItem mi = new java.awt.MenuItem(f.getName());
+                    mi.addActionListener(e -> {
+                        // Отправляем команду на основной поток
+                        Platform.runLater(() -> startLaunchThread(f.getName()));
+                    });
+                    launchMenu.add(mi);
+                }
+            } else {
+                java.awt.MenuItem none = new java.awt.MenuItem("—");
+                none.setEnabled(false);
+                launchMenu.add(none);
+            }
+        } catch (Exception e) {
+            LogService.warn("[Tray] Ошибка при заполнении меню запуска: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        final int SINGLE_PORT = 42345;
+        if (!SingleInstanceManager.tryAcquire(SINGLE_PORT)) {
+            SingleInstanceManager.notifyExisting(SINGLE_PORT, "show");
+            System.exit(0);
+        }
+        launch(args);
+    }
 }

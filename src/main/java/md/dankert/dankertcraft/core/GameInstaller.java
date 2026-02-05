@@ -3,9 +3,9 @@ package md.dankert.dankertcraft.core;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
-import md.dankert.dankertcraft.utils.Downloader;
+import md.dankert.dankertcraft.utils.NetworkService;
 import md.dankert.dankertcraft.cache.CacheManager;
 import md.dankert.dankertcraft.config.ConfigManager;
 
@@ -34,7 +34,7 @@ public class GameInstaller {
         else if (os.contains("mac")) this.osFamily = "osx";
         else this.osFamily = "linux";
         
-        LogSystem.info("[GameInstaller] 🎮 Инициализация для платформы: " + osFamily + 
+        LogService.info("[GameInstaller] 🎮 Инициализация для платформы: " + osFamily + 
                    " (" + System.getProperty("os.name") + ")");
     }
 
@@ -42,19 +42,19 @@ public class GameInstaller {
     public static synchronized GameInstaller getInstance(String workDir) {
         if (instance == null) {
             instance = new GameInstaller(workDir);
-            LogSystem.info("[GameInstaller] ✅ Singleton создан");
+            LogService.info("[GameInstaller] ✅ Singleton создан");
         }
         return instance;
     }
 
     public void stop() {
         this.shouldStop = true;
-        LogSystem.warn("[GameInstaller] ⚠️ Флаг shouldStop установлен - загрузка будет отменена");
+        LogService.warn("[GameInstaller] ⚠️ Флаг shouldStop установлен - загрузка будет отменена");
     }
 
     public void setPaused(boolean paused) {
         this.isPaused = paused;
-        LogSystem.info("[GameInstaller] " + (paused ? "⏸ Загрузка паузирована" : "▶ Загрузка возобновлена"));
+        LogService.info("[GameInstaller] " + (paused ? "⏸ Загрузка паузирована" : "▶ Загрузка возобновлена"));
     }
 
     public boolean isStopped() {
@@ -68,7 +68,7 @@ public class GameInstaller {
     // Хелпер для безопасного логирования исключений в потоках
     public static void setupThreadExceptionHandler(Thread thread) {
         thread.setUncaughtExceptionHandler((t, e) -> {
-            LogSystem.error("[" + t.getName() + "] Необработанное исключение в потоке", e);
+            LogService.error("[" + t.getName() + "] Необработанное исключение в потоке", e);
         });
     }
 
@@ -98,7 +98,7 @@ public class GameInstaller {
         try {
             // Загружаем с интернета
             String manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
-            String json = Downloader.downloadToString(manifestUrl);
+            String json = NetworkService.downloadToString(manifestUrl);
             VersionData.Manifest manifest = gson.fromJson(json, VersionData.Manifest.class);
 
             List<String> ids = new ArrayList<>();
@@ -112,15 +112,15 @@ public class GameInstaller {
             if (configMgr.isCacheVersions() && !ids.isEmpty()) {
                 boolean saved = cacheMgr.saveVersionsToCache(ids);
                 if (saved) {
-                    LogSystem.info("[GameInstaller] ✅ Версии кэшированы успешно");
+                    LogService.info("[GameInstaller] ✅ Версии кэшированы успешно");
                 } else {
-                    LogSystem.warn("[GameInstaller] ⚠️ Не удалось сохранить версии в кэш");
+                    LogService.warn("[GameInstaller] ⚠️ Не удалось сохранить версии в кэш");
                 }
             }
             
             return ids;
         } catch (Exception e) {
-            LogSystem.error("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш", e);
+            LogService.error("[GameInstaller] Ошибка при загрузке версий, пытаемся использовать кэш", e);
             List<String> cached = cacheMgr.getVersionsFromCache();
             if (!cached.isEmpty()) {
                 return cached;
@@ -132,34 +132,34 @@ public class GameInstaller {
     public VersionData setupGame(String version, ProgressListener listener) throws IOException {
         this.listener = listener;
         
-        LogSystem.info("[GameInstaller] 📥 Начало установки Minecraft " + version);
+        LogService.info("[GameInstaller] 📥 Начало установки Minecraft " + version);
         
         String versionDir = workDir + File.separator + "versions" + File.separator + version;
         String jsonPath = versionDir + File.separator + version + ".json";
         String jarPath = versionDir + File.separator + version + ".jar";
 
         // 1. Получаем манифест
-        LogSystem.info("[GameInstaller] 📡 Загрузка манифеста версий...");
-        String manifestJson = Downloader.downloadToString("https://launchermeta.mojang.com/mc/game/version_manifest.json");
+        LogService.info("[GameInstaller] 📡 Загрузка манифеста версий...");
+        String manifestJson = NetworkService.downloadToString("https://launchermeta.mojang.com/mc/game/version_manifest.json");
         VersionData.Manifest manifest = gson.fromJson(manifestJson, VersionData.Manifest.class);
 
         VersionData.Manifest.Version selected = manifest.versions.stream()
                 .filter(v -> v.id.equals(version))
                 .findFirst()
                 .orElseThrow(() -> {
-                    LogSystem.error("[GameInstaller] ❌ Версия не найдена: " + version);
+                    LogService.error("[GameInstaller] ❌ Версия не найдена: " + version);
                     return new RuntimeException(LanguageStrings.get("error.version.not.found") + " " + version);
                 });
 
         new File(versionDir).mkdirs();
-        LogSystem.info("[GameInstaller] 📁 Директория версии: " + versionDir);
+        LogService.info("[GameInstaller] 📁 Директория версии: " + versionDir);
 
         // 2. Скачиваем JSON версии
         if (!new File(jsonPath).exists()) {
-            LogSystem.info("[GameInstaller] 📥 Загрузка JSON конфига версии...");
-            Downloader.downloadFile(selected.url, jsonPath);
+            LogService.info("[GameInstaller] 📥 Загрузка JSON конфига версии...");
+            NetworkService.downloadFile(selected.url, jsonPath);
         } else {
-            LogSystem.info("[GameInstaller] ✓ JSON версии уже есть");
+            LogService.info("[GameInstaller] ✓ JSON версии уже есть");
         }
 
         VersionData data;
@@ -167,29 +167,34 @@ public class GameInstaller {
             data = gson.fromJson(reader, VersionData.class);
         }
 
+        // Валидация: убедимся что загруженный JSON действительно относится к запрошенной версии
+        if (data == null || data.id == null || !data.id.equals(version)) {
+            throw new IOException("Загруженный JSON версии не соответствует запрошенной версии: ожидается " + version + ", получено " + (data != null ? data.id : "null"));
+        }
+
         // 3. Скачиваем JAR клиента
         if (data.downloads != null && data.downloads.client != null) {
             File jarFile = new File(jarPath);
             if (needsUpdate(jarFile, data.downloads.client.sha1)) {
-                LogSystem.info("[GameInstaller] 📥 Загрузка JAR клиента (" + 
+                LogService.info("[GameInstaller] 📥 Загрузка JAR клиента (" + 
                            formatFileSize(data.downloads.client.size) + ")...");
-                Downloader.downloadFile(data.downloads.client.url, jarPath);
-                LogSystem.info("[GameInstaller] ✅ JAR загружен");
+                NetworkService.downloadFile(data.downloads.client.url, jarPath);
+                LogService.info("[GameInstaller] ✅ JAR загружен");
             } else {
-                LogSystem.info("[GameInstaller] ✓ JAR клиента уже есть");
+                LogService.info("[GameInstaller] ✓ JAR клиента уже есть");
             }
         }
 
         // 4. Библиотеки и Ассеты
-        LogSystem.info("[GameInstaller] 📦 Загрузка библиотек...");
+        LogService.info("[GameInstaller] 📦 Загрузка библиотек...");
         downloadLibraries(data);
         
         if (data.assetIndex != null) {
-            LogSystem.info("[GameInstaller] 🎨 Загрузка ассетов (индекс: " + data.assetIndex.id + ")...");
+            LogService.info("[GameInstaller] 🎨 Загрузка ассетов (индекс: " + data.assetIndex.id + ")...");
             downloadAssets(data.assetIndex);
         }
         
-        LogSystem.info("[GameInstaller] ✅ Установка Minecraft " + version + " завершена");
+        LogService.info("[GameInstaller] ✅ Установка Minecraft " + version + " завершена");
 
         return data;
     }
@@ -198,7 +203,7 @@ public class GameInstaller {
         if (data.libraries == null) return;
 
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        LogSystem.info("[Installer] Проверка библиотек в 10 потоков...");
+        LogService.info("[Installer] Проверка библиотек в 10 потоков...");
 
         // Подсчитываем количество файлов
         int totalFiles = 0;
@@ -246,7 +251,7 @@ public class GameInstaller {
                         reportProgress(LanguageStrings.get("progress.downloading.libs"), currentFile[0], totalFilesCopy);
                     }
                 } catch (IOException e) {
-                    LogSystem.error("[Installer] Ошибка при загрузке библиотеки " + lib.name + ": " + e.getMessage());
+                    LogService.error("[Installer] Ошибка при загрузке библиотеки " + lib.name + ": " + e.getMessage());
                 }
             });
         }
@@ -297,7 +302,7 @@ public class GameInstaller {
 
         if (needsUpdate(indexFile, index.sha1)) {
             File indexParent = indexFile.getParentFile(); if (indexParent != null) indexParent.mkdirs();
-            Downloader.downloadFile(index.url, path);
+            NetworkService.downloadFile(index.url, path);
         }
 
         JsonObject rootJson;
@@ -315,7 +320,7 @@ public class GameInstaller {
         ExecutorService executor = Executors.newFixedThreadPool(15);
         int totalAssets = objects.size();
         final int[] currentAsset = {0};
-        LogSystem.info("[Installer] Проверка ассетов (" + totalAssets + " файлов). Legacy режим: " + isLegacy);
+        LogService.info("[Installer] Проверка ассетов (" + totalAssets + " файлов). Legacy режим: " + isLegacy);
 
         for (Map.Entry<String, JsonElement> entry : objects.entrySet()) {
             String assetName = entry.getKey();
@@ -335,7 +340,7 @@ public class GameInstaller {
                     boolean downloaded = false;
                     if (!objectFile.exists() || objectFile.length() != size) {
                         File objParent = objectFile.getParentFile(); if (objParent != null) objParent.mkdirs();
-                        downloadAssetFile("https://resources.download.minecraft.net/" + sub + "/" + hash, objectFile.getAbsolutePath());
+                        NetworkService.downloadFile("https://resources.download.minecraft.net/" + sub + "/" + hash, objectFile.getAbsolutePath());
                         downloaded = true;
                     }
 
@@ -355,7 +360,7 @@ public class GameInstaller {
                     }
 
                 } catch (Exception e) {
-                    LogSystem.error("[Installer] Ошибка при загрузке ассета: " + e.getMessage());
+                    LogService.error("[Installer] Ошибка при загрузке ассета: " + e.getMessage());
                 }
             });
         }
@@ -379,16 +384,16 @@ public class GameInstaller {
         try {
             executor.shutdown();
             if (!executor.awaitTermination(30, TimeUnit.MINUTES)) {
-                LogSystem.warn("[Installer] Таймаут ожидания потоков, принудительное завершение...");
+                LogService.warn("[Installer] Таймаут ожидания потоков, принудительное завершение...");
                 executor.shutdownNow();
                 // Даём ещё время на завершение после shutdownNow
                 if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    LogSystem.error("[Installer] Потоки не завершились даже после shutdownNow!");
+                    LogService.error("[Installer] Потоки не завершились даже после shutdownNow!");
                 }
             }
-            LogSystem.info("[Installer] Загрузка завершена: " + label);
+            LogService.info("[Installer] Загрузка завершена: " + label);
         } catch (InterruptedException e) {
-            LogSystem.error("[Installer] Прерывание при ожидании завершения потоков", e);
+            LogService.error("[Installer] Прерывание при ожидании завершения потоков", e);
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }

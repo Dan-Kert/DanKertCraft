@@ -1,9 +1,9 @@
 package md.dankert.dankertcraft.config;
 
 import com.google.gson.Gson;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import com.google.gson.GsonBuilder;
-import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.SystemContext;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.HashMap;
@@ -27,7 +27,7 @@ public class ConfigManager {
     }
 
     private ConfigManager() {
-        String workDir = OSHelper.getWorkingDirectory();
+        String workDir = SystemContext.getWorkingDirectory();
         this.configFile = new File(workDir, "config.json");
         loadConfig();
     }
@@ -44,14 +44,14 @@ public class ConfigManager {
             if (configFile.exists()) {
                 String json = Files.readString(configFile.toPath());
                 config = gson.fromJson(json, Config.class);
-                LogSystem.info("[Config] Конфиг загружен: " + config.username);
+                LogService.info("[Config] Конфиг загружен: " + config.username);
             } else {
                 config = new Config();
                 saveConfig();
-                LogSystem.info("[Config] Создан новый конфиг");
+                LogService.info("[Config] Создан новый конфиг");
             }
         } catch (Exception e) {
-            LogSystem.error("[Config] Ошибка при загрузке: " + e.getMessage());
+            LogService.error("[Config] Ошибка при загрузке: " + e.getMessage());
             config = new Config();
         }
     }
@@ -61,9 +61,9 @@ public class ConfigManager {
             File cfParent = configFile.getParentFile(); if (cfParent != null) cfParent.mkdirs();
             String json = gson.toJson(config);
             Files.writeString(configFile.toPath(), json);
-            LogSystem.info("[Config] Конфиг сохранен");
+            LogService.info("[Config] Конфиг сохранен");
         } catch (Exception e) {
-            LogSystem.error("[Config] Ошибка при сохранении: " + e.getMessage());
+            LogService.error("[Config] Ошибка при сохранении: " + e.getMessage());
         }
     }
 

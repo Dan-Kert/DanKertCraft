@@ -14,8 +14,8 @@ import javafx.stage.Stage;
 import md.dankert.dankertcraft.core.FabricManager;
 import md.dankert.dankertcraft.core.GameInstaller;
 import md.dankert.dankertcraft.core.VanillaManager;
-import md.dankert.dankertcraft.utils.LogSystem;
-import md.dankert.dankertcraft.utils.OSHelper;
+import md.dankert.dankertcraft.utils.LogService;
+import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 
 import java.io.File;
@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class InstallWindow {
-    private final String workDir = OSHelper.getWorkingDirectory();
+    private final String workDir = SystemContext.getWorkingDirectory();
     private final LauncherUI launcherUI;
 
     private List<String> allVersions = new ArrayList<>();
@@ -57,6 +57,7 @@ public class InstallWindow {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
         stage.setTitle(LanguageStrings.get("install"));
+        md.dankert.dankertcraft.utils.UIHelper.setAppIcon(stage);
 
         stage.setMinWidth(620);
         stage.setMinHeight(650);
@@ -272,33 +273,38 @@ public class InstallWindow {
             File instanceDir = new File(workDir, "instances/" + folderName);
             instanceDir.mkdirs();
 
-            String initialJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"auto\",\"ram\":\"%s\",\"icon\":\"%s\",\"username\":\"%s\"}",
-                    ver, currentCategory, ram, selectedIconFile, nick);
+            String initialJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"auto\",\"ram\":\"%s\",\"username\":\"%s\",\"downloaded\":false}",
+                    ver, currentCategory, ram, nick);
             Files.writeString(new File(instanceDir, "instance.json").toPath(), initialJson);
 
             md.dankert.dankertcraft.config.ConfigManager.getInstance().setUsername(nick);
-            launcherUI.refreshGamesGrid();
-
-            // Получаем singleton GameInstaller
-            md.dankert.dankertcraft.core.GameInstaller installer = md.dankert.dankertcraft.core.GameInstaller.getInstance(workDir);
+            // Не обновляем грид сейчас — иконка должна появиться только после успешного завершения загрузки
             
+            md.dankert.dankertcraft.core.GameInstaller installer = md.dankert.dankertcraft.core.GameInstaller.getInstance(workDir);
+
             DownloadTask task = new DownloadTask("dummy", new File(workDir, "temp")) {
                 @Override protected Void call() throws Exception {
-                    VanillaManager vm = new VanillaManager(workDir);
-                    vm.prepare(ver, this);
-                    if (currentCategory.equals("Fabric")) new FabricManager(workDir).prepare(ver);
-                    String javaPath = vm.setupJavaRuntime(ver, this);
+                    md.dankert.dankertcraft.core.InstallationService.Type type = currentCategory.equals("Fabric") ? md.dankert.dankertcraft.core.InstallationService.Type.FABRIC : md.dankert.dankertcraft.core.InstallationService.Type.VANILLA;
+                    md.dankert.dankertcraft.core.InstallationService svc = new md.dankert.dankertcraft.core.InstallationService(workDir);
+
+                    // Подготовка версии (скачивание JSON/JAR/библиотек/ассетов)
+                    svc.prepareVersion(ver, type, this);
+
+                    // Установка/получение пути к Java
+                    String javaPath = svc.setupJavaRuntime(ver, this);
 
                     // Нормализуем пути для JSON: используем forward slashes для portability, но на Windows оставляем как есть
                     String normalizedJavaPath = javaPath;
                     if (!System.getProperty("os.name").toLowerCase().contains("win")) {
-                        // На Linux/Mac используем forward slashes
                         normalizedJavaPath = javaPath.replace("\\", "/");
                     }
                     
                     String finalJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"%s\",\"ram\":\"%s\",\"icon\":\"%s\",\"downloaded\":true}",
                             ver, currentCategory, normalizedJavaPath, ram, selectedIconFile);
                     Files.writeString(new File(instanceDir, "instance.json").toPath(), finalJson);
+
+                    // После успешного завершения установки — обновим грид чтобы иконка появилась
+                    Platform.runLater(() -> launcherUI.refreshGamesGrid());
                     return null;
                 }
             };
@@ -308,11 +314,11 @@ public class InstallWindow {
             
             Thread downloadThread = new Thread(task, "InstallThread-" + name);
             downloadThread.setUncaughtExceptionHandler((t, e) -> {
-                LogSystem.error("[" + t.getName() + "] Ошибка во время загрузки", e);
+                LogService.error("[" + t.getName() + "] Ошибка во время загрузки", e);
                 Platform.runLater(() -> launcherUI.getDownloadStatusBar().hideBar());
             });
             downloadThread.start();
-        } catch (Exception ex) { LogSystem.error(ex.getMessage()); }
+        } catch (Exception ex) { LogService.error(ex.getMessage(), ex); }
     }
 
     private void updateIconPreview(String fileName) {

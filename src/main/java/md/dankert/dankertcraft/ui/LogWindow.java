@@ -8,7 +8,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -42,6 +42,7 @@ public class LogWindow {
     public LogWindow(String instanceName) {
         this.instanceName = instanceName;
         stage.setTitle(t("window.logs") + instanceName);
+        md.dankert.dankertcraft.utils.UIHelper.setAppIcon(stage);
         stage.setWidth(1000);
         stage.setHeight(600);
 
@@ -91,7 +92,7 @@ public class LogWindow {
         if (cssUrl != null) {
             stage.getScene().getStylesheets().add(cssUrl.toExternalForm());
         } else {
-            LogSystem.warn("[LogWindow] CSS файл не найден, используются встроенные стили");
+            LogService.warn("[LogWindow] CSS файл не найден, используются встроенные стили");
         }
 
         // Если окно закрыли крестиком, просто скрываем его
@@ -245,6 +246,7 @@ public class LogWindow {
             
             Stage crashStage = new Stage();
             crashStage.setTitle("Crash Report: " + latestFile.getName());
+            md.dankert.dankertcraft.utils.UIHelper.setAppIcon(crashStage);
             crashStage.setScene(new Scene(crashArea, 1000, 600));
             crashStage.show();
             

@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.ui;
 
 import com.google.gson.JsonObject;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import com.google.gson.JsonParser;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -148,7 +148,7 @@ public class Sidebar extends VBox {
             }
             iv.setImage(img);
         } catch (Exception e) {
-            LogSystem.error("Ошибка Sidebar: " + iconPath);
+            LogService.error("Ошибка Sidebar: " + iconPath);
         }
 
         Circle clip = new Circle(size / 2.0, size / 2.0, size / 2.0);
@@ -195,7 +195,7 @@ public class Sidebar extends VBox {
                     if (!key.reset()) break;
                 }
             } catch (Exception e) {
-                LogSystem.error("Sidebar Watcher error: " + e.getMessage());
+                LogService.error("Sidebar Watcher error: " + e.getMessage());
             }
         });
         watcherThread.setDaemon(true);

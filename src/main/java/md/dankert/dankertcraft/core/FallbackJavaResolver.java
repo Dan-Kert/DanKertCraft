@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.core;
 
 import md.dankert.dankertcraft.platform.PlatformHelper;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,7 +23,7 @@ public class FallbackJavaResolver {
      * Автоматически определяет нужные библиотеки для текущей платформы.
      */
     public static boolean ensureRequiredLibs(String javaLibDir) {
-        LogSystem.info("[FallbackJavaResolver] 🔍 Проверка критических файлов Java для " + 
+        LogService.info("[FallbackJavaResolver] 🔍 Проверка критических файлов Java для " + 
                          PlatformHelper.getCurrentOS().name + "...");
         
         // Получаем список требуемых библиотек для текущей платформы
@@ -56,11 +56,11 @@ public class FallbackJavaResolver {
         File lib = new File(libDir, libName);
         
         if (lib.exists()) {
-            LogSystem.info("[FallbackJavaResolver] ✓ " + libName + " уже присутствует");
+            LogService.info("[FallbackJavaResolver] ✓ " + libName + " уже присутствует");
             return true;
         }
         
-        LogSystem.info("[FallbackJavaResolver] ⚠ " + libName + " отсутствует, восстанавливаем...");
+        LogService.info("[FallbackJavaResolver] ⚠ " + libName + " отсутствует, восстанавливаем...");
         
         // 1. Ищем в server/lib (частая ошибка распаковки)
         File serverLib = new File(javaLibDir + File.separator + "server");
@@ -68,12 +68,12 @@ public class FallbackJavaResolver {
             File serverLibFile = new File(serverLib, libName);
             if (serverLibFile.exists()) {
                 try {
-                    LogSystem.info("[FallbackJavaResolver] 📚 Найдена в server/, копируем...");
+                    LogService.info("[FallbackJavaResolver] 📚 Найдена в server/, копируем...");
                     Files.copy(serverLibFile.toPath(), lib.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    LogSystem.info("[FallbackJavaResolver] ✓ " + libName + " восстановлена");
+                    LogService.info("[FallbackJavaResolver] ✓ " + libName + " восстановлена");
                     return true;
                 } catch (IOException e) {
-                    LogSystem.error("[FallbackJavaResolver] ✗ Ошибка копирования: " + e.getMessage());
+                    LogService.error("[FallbackJavaResolver] ✗ Ошибка копирования: " + e.getMessage());
                 }
             }
         }
@@ -83,12 +83,12 @@ public class FallbackJavaResolver {
         File systemLib = new File(systemJavaHome, "lib/" + libName);
         if (systemLib.exists()) {
             try {
-                LogSystem.info("[FallbackJavaResolver] 📚 Копируем из системного Java...");
+                LogService.info("[FallbackJavaResolver] 📚 Копируем из системного Java...");
                 Files.copy(systemLib.toPath(), lib.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                LogSystem.info("[FallbackJavaResolver] ✓ " + libName + " восстановлена");
+                LogService.info("[FallbackJavaResolver] ✓ " + libName + " восстановлена");
                 return true;
             } catch (IOException e) {
-                LogSystem.error("[FallbackJavaResolver] ✗ Ошибка копирования: " + e.getMessage());
+                LogService.error("[FallbackJavaResolver] ✗ Ошибка копирования: " + e.getMessage());
             }
         }
         
@@ -96,12 +96,12 @@ public class FallbackJavaResolver {
         File systemServerLib = new File(systemJavaHome, "lib/server/" + libName);
         if (systemServerLib.exists()) {
             try {
-                LogSystem.info("[FallbackJavaResolver] 📚 Копируем из системного Java server/...");
+                LogService.info("[FallbackJavaResolver] 📚 Копируем из системного Java server/...");
                 Files.copy(systemServerLib.toPath(), lib.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                LogSystem.info("[FallbackJavaResolver] ✓ " + libName + " восстановлена");
+                LogService.info("[FallbackJavaResolver] ✓ " + libName + " восстановлена");
                 return true;
             } catch (IOException e) {
-                LogSystem.error("[FallbackJavaResolver] ✗ Ошибка копирования: " + e.getMessage());
+                LogService.error("[FallbackJavaResolver] ✗ Ошибка копирования: " + e.getMessage());
             }
         }
         
@@ -112,17 +112,17 @@ public class FallbackJavaResolver {
             File commonLib = new File(libPath);
             if (commonLib.exists()) {
                 try {
-                    LogSystem.info("[FallbackJavaResolver] 📚 Копируем из " + libPath + "...");
+                    LogService.info("[FallbackJavaResolver] 📚 Копируем из " + libPath + "...");
                     Files.copy(commonLib.toPath(), lib.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    LogSystem.info("[FallbackJavaResolver] ✓ " + libName + " восстановлена");
+                    LogService.info("[FallbackJavaResolver] ✓ " + libName + " восстановлена");
                     return true;
                 } catch (IOException e) {
-                    LogSystem.error("[FallbackJavaResolver] ✗ Ошибка при копировании из " + libPath);
+                    LogService.error("[FallbackJavaResolver] ✗ Ошибка при копировании из " + libPath);
                 }
             }
         }
         
-        LogSystem.error("[FallbackJavaResolver] ✗ Не удалось найти " + libName);
+        LogService.error("[FallbackJavaResolver] ✗ Не удалось найти " + libName);
         return false;
     }
     
@@ -168,27 +168,27 @@ public class FallbackJavaResolver {
         File configFile = new File(libDir, configName);
         
         if (configFile.exists()) {
-            LogSystem.info("[FallbackJavaResolver] ✓ " + configName + " уже присутствует");
+            LogService.info("[FallbackJavaResolver] ✓ " + configName + " уже присутствует");
             return true;
         }
         
-        LogSystem.info("[FallbackJavaResolver] ⚠ " + configName + " отсутствует, восстанавливаем...");
+        LogService.info("[FallbackJavaResolver] ⚠ " + configName + " отсутствует, восстанавливаем...");
         
         // Ищем в системном Java
         String systemJavaHome = System.getProperty("java.home");
         File systemConfig = new File(systemJavaHome, "lib/" + configName);
         if (systemConfig.exists()) {
             try {
-                LogSystem.info("[FallbackJavaResolver] 📋 Копируем из системного Java...");
+                LogService.info("[FallbackJavaResolver] 📋 Копируем из системного Java...");
                 Files.copy(systemConfig.toPath(), configFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                LogSystem.info("[FallbackJavaResolver] ✓ " + configName + " восстановлен");
+                LogService.info("[FallbackJavaResolver] ✓ " + configName + " восстановлен");
                 return true;
             } catch (IOException e) {
-                LogSystem.error("[FallbackJavaResolver] ✗ Ошибка копирования: " + e.getMessage());
+                LogService.error("[FallbackJavaResolver] ✗ Ошибка копирования: " + e.getMessage());
             }
         }
         
-        LogSystem.error("[FallbackJavaResolver] ✗ Не удалось найти " + configName);
+        LogService.error("[FallbackJavaResolver] ✗ Не удалось найти " + configName);
         return false;
     }
     

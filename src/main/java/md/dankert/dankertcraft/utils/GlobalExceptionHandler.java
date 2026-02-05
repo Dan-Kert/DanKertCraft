@@ -14,7 +14,7 @@ public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
         if (instance == null) {
             instance = new GlobalExceptionHandler();
             Thread.setDefaultUncaughtExceptionHandler(instance);
-            LogSystem.info("[ExceptionHandler] 🛡️ Глобальный обработчик исключений установлен");
+            LogService.info("[ExceptionHandler] 🛡️ Глобальный обработчик исключений установлен");
         }
     }
     
@@ -22,20 +22,20 @@ public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
     public void uncaughtException(Thread thread, Throwable throwable) {
         try {
             // Логируем ошибку в файл
-            LogSystem.separator("НЕОБРАБОТАННОЕ ИСКЛЮЧЕНИЕ");
-            LogSystem.error("[ExceptionHandler] 💥 Ошибка в потоке: " + thread.getName() + " (ID: " + thread.getId() + ")");
-            LogSystem.error("[ExceptionHandler] 📌 Тип: " + throwable.getClass().getSimpleName());
-            LogSystem.error("[ExceptionHandler] 💬 Сообщение: " + throwable.getMessage());
-            LogSystem.error("[ExceptionHandler]", throwable);
-            LogSystem.separator("ДИАГНОСТИЧЕСКАЯ ИНФОРМАЦИЯ");
+            LogService.separator("НЕОБРАБОТАННОЕ ИСКЛЮЧЕНИЕ");
+            LogService.error("[ExceptionHandler] 💥 Ошибка в потоке: " + thread.getName() + " (ID: " + thread.getId() + ")");
+            LogService.error("[ExceptionHandler] 📌 Тип: " + throwable.getClass().getSimpleName());
+            LogService.error("[ExceptionHandler] 💬 Сообщение: " + throwable.getMessage());
+            LogService.error("[ExceptionHandler]", throwable);
+            LogService.separator("ДИАГНОСТИЧЕСКАЯ ИНФОРМАЦИЯ");
             
             // Диагностическая информация
             logDiagnosticInfo();
             
-            LogSystem.separator("КОНЕЦ ОШИБКИ");
+            LogService.separator("КОНЕЦ ОШИБКИ");
             
             // КРИТИЧНО: Гарантированно записываем всё на диск
-            LogSystem.flushAndClose();
+            LogService.flushAndClose();
             
             // Выводим в консоль для видимости
             System.err.println("\n❌ НЕОБРАБОТАННОЕ ИСКЛЮЧЕНИЕ:");
@@ -46,7 +46,7 @@ public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
             System.err.println("════════════════════════════════════════════════════════════");
             
         } catch (Exception e) {
-            LogSystem.error("❌ ОШИБКА ОБРАБОТЧИКА ИСКЛЮЧЕНИЙ:", e);
+            LogService.error("❌ ОШИБКА ОБРАБОТЧИКА ИСКЛЮЧЕНИЙ:", e);
         }
     }
     
@@ -55,50 +55,50 @@ public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
      */
     private void logDiagnosticInfo() {
         try {
-            LogSystem.info("[Diagnostic] Диагностическая информация системы:");
-            LogSystem.info("[Diagnostic] ═══════════════════════════════════════════════════════");
+            LogService.info("[Diagnostic] Диагностическая информация системы:");
+            LogService.info("[Diagnostic] ═══════════════════════════════════════════════════════");
             
             // ОС
-            LogSystem.info("[Diagnostic] ОС: " + System.getProperty("os.name"));
-            LogSystem.info("[Diagnostic] Версия ОС: " + System.getProperty("os.version"));
-            LogSystem.info("[Diagnostic] Архитектура: " + System.getProperty("os.arch"));
-            LogSystem.info("[Diagnostic] Платформа: " + PlatformHelper.getCurrentOS());
+            LogService.info("[Diagnostic] ОС: " + System.getProperty("os.name"));
+            LogService.info("[Diagnostic] Версия ОС: " + System.getProperty("os.version"));
+            LogService.info("[Diagnostic] Архитектура: " + System.getProperty("os.arch"));
+            LogService.info("[Diagnostic] Платформа: " + PlatformHelper.getCurrentOS());
             
             // Java
-            LogSystem.info("[Diagnostic] Java версия: " + System.getProperty("java.version"));
-            LogSystem.info("[Diagnostic] Java вендор: " + System.getProperty("java.vendor"));
-            LogSystem.info("[Diagnostic] Java путь: " + System.getProperty("java.home"));
-            LogSystem.info("[Diagnostic] Java класс-путь: " + System.getProperty("java.class.path").substring(0, Math.min(100, System.getProperty("java.class.path").length())));
+            LogService.info("[Diagnostic] Java версия: " + System.getProperty("java.version"));
+            LogService.info("[Diagnostic] Java вендор: " + System.getProperty("java.vendor"));
+            LogService.info("[Diagnostic] Java путь: " + System.getProperty("java.home"));
+            LogService.info("[Diagnostic] Java класс-путь: " + System.getProperty("java.class.path").substring(0, Math.min(100, System.getProperty("java.class.path").length())));
             
             // Память
             Runtime runtime = Runtime.getRuntime();
-            LogSystem.info("[Diagnostic] Доступная память: " + formatBytes(runtime.totalMemory()));
-            LogSystem.info("[Diagnostic] Использованная память: " + formatBytes(runtime.totalMemory() - runtime.freeMemory()));
-            LogSystem.info("[Diagnostic] Максимальная память: " + formatBytes(runtime.maxMemory()));
+            LogService.info("[Diagnostic] Доступная память: " + formatBytes(runtime.totalMemory()));
+            LogService.info("[Diagnostic] Использованная память: " + formatBytes(runtime.totalMemory() - runtime.freeMemory()));
+            LogService.info("[Diagnostic] Максимальная память: " + formatBytes(runtime.maxMemory()));
             
             // Процессоры
-            LogSystem.info("[Diagnostic] Количество ядер: " + Runtime.getRuntime().availableProcessors());
+            LogService.info("[Diagnostic] Количество ядер: " + Runtime.getRuntime().availableProcessors());
             
             // Активные потоки
-            LogSystem.info("[Diagnostic] Количество активных потоков: " + Thread.activeCount());
-            LogSystem.info("[Diagnostic] Активные потоки:");
+            LogService.info("[Diagnostic] Количество активных потоков: " + Thread.activeCount());
+            LogService.info("[Diagnostic] Активные потоки:");
             Thread[] threads = new Thread[Thread.activeCount()];
             Thread.enumerate(threads);
             for (Thread t : threads) {
                 if (t != null) {
-                    LogSystem.info("[Diagnostic]   - " + t.getName() + " (ID: " + t.getId() + ", состояние: " + t.getState() + ")");
+                    LogService.info("[Diagnostic]   - " + t.getName() + " (ID: " + t.getId() + ", состояние: " + t.getState() + ")");
                 }
             }
             
             // Переменные окружения
-            LogSystem.info("[Diagnostic] Пользователь: " + System.getProperty("user.name"));
-            LogSystem.info("[Diagnostic] Домашняя директория: " + System.getProperty("user.home"));
-            LogSystem.info("[Diagnostic] Рабочая директория: " + System.getProperty("user.dir"));
+            LogService.info("[Diagnostic] Пользователь: " + System.getProperty("user.name"));
+            LogService.info("[Diagnostic] Домашняя директория: " + System.getProperty("user.home"));
+            LogService.info("[Diagnostic] Рабочая директория: " + System.getProperty("user.dir"));
             
-            LogSystem.info("[Diagnostic] ═══════════════════════════════════════════════════════");
+            LogService.info("[Diagnostic] ═══════════════════════════════════════════════════════");
             
         } catch (Exception e) {
-            LogSystem.error("[Diagnostic] Ошибка при сборе диагностической информации: " + e.getMessage());
+            LogService.error("[Diagnostic] Ошибка при сборе диагностической информации: " + e.getMessage());
         }
     }
     

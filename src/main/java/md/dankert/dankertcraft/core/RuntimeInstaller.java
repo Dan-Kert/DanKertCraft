@@ -1,7 +1,7 @@
 package md.dankert.dankertcraft.core;
 
 import md.dankert.dankertcraft.platform.PlatformHelper;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 
 import java.io.*;
 
@@ -32,7 +32,7 @@ public class RuntimeInstaller {
         int version = (data.javaVersion != null) ? data.javaVersion.majorVersion : 8;
 
         if (version == 16) {
-            LogSystem.info("[RuntimeInstaller] (!) Java 16 недоступна в API. Используем Java 17 для стабильности.");
+            LogService.info("[RuntimeInstaller] (!) Java 16 недоступна в API. Используем Java 17 для стабильности.");
             version = 17;
         }
 
@@ -41,20 +41,20 @@ public class RuntimeInstaller {
             String.valueOf(version)
         );
 
-        LogSystem.info("[RuntimeInstaller] ═══════════════════════════════════════════════════════");
-        LogSystem.info("[RuntimeInstaller] 🔍 Поиск Java " + version);
-        LogSystem.info("[RuntimeInstaller] Платформа: " + PlatformHelper.getCurrentOS().name);
-        LogSystem.info("[RuntimeInstaller] Путь Java: " + javaBin);
+        LogService.info("[RuntimeInstaller] ═══════════════════════════════════════════════════════");
+        LogService.info("[RuntimeInstaller] 🔍 Поиск Java " + version);
+        LogService.info("[RuntimeInstaller] Платформа: " + PlatformHelper.getCurrentOS().name);
+        LogService.info("[RuntimeInstaller] Путь Java: " + javaBin);
 
         if (new File(javaBin).exists()) {
-            LogSystem.info("[RuntimeInstaller] ✅ Java найдена!");
-            LogSystem.info("[RuntimeInstaller] ═══════════════════════════════════════════════════════");
+            LogService.info("[RuntimeInstaller] ✅ Java найдена!");
+            LogService.info("[RuntimeInstaller] ═══════════════════════════════════════════════════════");
             return javaBin;
         }
 
-        LogSystem.info("[RuntimeInstaller] ❌ Java не найдена.");
-        LogSystem.info("[RuntimeInstaller] ℹ️  Для установки Java используйте JavaRuntimeManager.");
-        LogSystem.info("[RuntimeInstaller] ═══════════════════════════════════════════════════════");
+        LogService.info("[RuntimeInstaller] ❌ Java не найдена.");
+        LogService.info("[RuntimeInstaller] ℹ️  Для установки Java используйте JavaRuntimeManager.");
+        LogService.info("[RuntimeInstaller] ═══════════════════════════════════════════════════════");
         
         throw new IOException("Java " + version + " не установлена. Используйте JavaRuntimeManager для установки.");
     }

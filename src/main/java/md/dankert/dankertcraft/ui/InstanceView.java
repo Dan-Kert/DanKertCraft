@@ -11,10 +11,10 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import md.dankert.dankertcraft.utils.OSHelper;
 import md.dankert.dankertcraft.utils.InstanceConfigHelper;
 import md.dankert.dankertcraft.utils.LanguageStrings;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.SystemContext;
+import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.config.ConfigManager;
 
 import java.io.File;
@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 
 public class InstanceView extends VBox {
 
-    private final String workDir = OSHelper.getWorkingDirectory();
+    private final String workDir = SystemContext.getWorkingDirectory();
     private final String instanceName;
     private JsonObject config;
     private final Runnable onRefreshNeeded; // Чтобы обновить UI после удаления/изменений
@@ -197,6 +197,7 @@ public class InstanceView extends VBox {
     private void changePlayerNickname() {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
+        md.dankert.dankertcraft.utils.UIHelper.setAppIcon(stage);
         stage.setTitle(t("window.rename.nick"));
         stage.setWidth(400);
         stage.setHeight(200);
@@ -243,6 +244,7 @@ public class InstanceView extends VBox {
     private void showEditWindow() {
         Stage stage = new Stage();
         stage.initModality(Modality.APPLICATION_MODAL);
+        md.dankert.dankertcraft.utils.UIHelper.setAppIcon(stage);
         stage.setTitle(t("window.settings") + instanceName);
 
         VBox root = new VBox(20);
@@ -321,11 +323,11 @@ public class InstanceView extends VBox {
                     try {
                         File folder = new File(workDir, "instances/" + instanceName);
                         if (!folder.exists()) {
-                            LogSystem.warn("[InstanceView] Папка сборки не найдена: " + folder.getAbsolutePath());
+                            LogService.warn("[InstanceView] Папка сборки не найдена: " + folder.getAbsolutePath());
                             return;
                         }
                         
-                        LogSystem.info("[InstanceView] Начало удаления сборки: " + instanceName);
+                        LogService.info("[InstanceView] Начало удаления сборки: " + instanceName);
                         
                         long[] deletedCount = {0};
                         long[] totalCount = {0};
@@ -343,19 +345,19 @@ public class InstanceView extends VBox {
                                     Files.delete(path);
                                     deletedCount[0]++;
                                 } catch (Exception e) {
-                                    LogSystem.warn("[InstanceView] Не удалось удалить: " + path + ", " + e.getMessage());
+                                    LogService.warn("[InstanceView] Не удалось удалить: " + path + ", " + e.getMessage());
                                 }
                             });
                         }
                         
-                        LogSystem.info("[InstanceView] ✅ Сборка удалена (файлов: " + deletedCount[0] + "/" + totalCount[0] + ")");
+                        LogService.info("[InstanceView] ✅ Сборка удалена (файлов: " + deletedCount[0] + "/" + totalCount[0] + ")");
                         Platform.runLater(() -> {
                             onRefreshNeeded.run();
                             Alert successAlert = new Alert(Alert.AlertType.INFORMATION, "Сборка " + instanceName + " успешно удалена");
                             successAlert.showAndWait();
                         });
                     } catch (Exception e) {
-                        LogSystem.error("[InstanceView] Ошибка удаления сборки", e);
+                        LogService.error("[InstanceView] Ошибка удаления сборки", e);
                         Platform.runLater(() -> {
                             Alert errorAlert = new Alert(Alert.AlertType.ERROR, "Ошибка удаления: " + e.getMessage());
                             errorAlert.showAndWait();
@@ -379,7 +381,7 @@ public class InstanceView extends VBox {
                     Desktop.getDesktop().open(folder);
                 }
             } catch (Exception e) {
-                LogSystem.error("[InstanceView] Ошибка открытия папки сборки", e);
+                LogService.error("[InstanceView] Ошибка открытия папки сборки", e);
                 Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Не удалось открыть папку: " + e.getMessage()).show());
             }
         }, "FolderOpener-Thread").start();
@@ -423,7 +425,7 @@ public class InstanceView extends VBox {
             }
             iv.setImage(img);
         } catch (Exception e) { 
-            LogSystem.error("[InstanceView] Ошибка обновления поля конфига", e);
+            LogService.error("[InstanceView] Ошибка обновления поля конфига", e);
         }
         return iv;
     }

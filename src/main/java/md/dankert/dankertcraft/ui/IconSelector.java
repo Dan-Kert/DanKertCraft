@@ -158,7 +158,7 @@ public class IconSelector extends Stage {
                 Files.copy(selected.toPath(), dest.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 refreshIcons();
             } catch (Exception e) {
-                md.dankert.dankertcraft.utils.LogSystem.error("[IconSelector] Ошибка при загрузке/копировании иконки: " + e.getMessage(), e);
+                md.dankert.dankertcraft.utils.LogService.error("[IconSelector] Ошибка при загрузке/копировании иконки: " + e.getMessage(), e);
             }
         }
     }

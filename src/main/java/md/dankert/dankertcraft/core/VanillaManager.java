@@ -2,7 +2,7 @@ package md.dankert.dankertcraft.core;
 
 import com.google.gson.Gson;
 import md.dankert.dankertcraft.utils.OSHelper;
-import md.dankert.dankertcraft.utils.LogSystem;
+import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -48,14 +48,14 @@ public class VanillaManager {
 
     public String setupJavaRuntime(String mcVersion, ProgressListener listener) {
         int requiredVer = getRequiredJavaVersion(mcVersion);
-        LogSystem.info("[VanillaManager] 🔍 Требуется Java " + requiredVer + " для Minecraft " + mcVersion);
+        LogService.info("[VanillaManager] 🔍 Требуется Java " + requiredVer + " для Minecraft " + mcVersion);
         
         try {
             CrossPlatformJavaInstaller installer = new CrossPlatformJavaInstaller(workDir, listener);
             return installer.installJavaRuntime(requiredVer);
         } catch (Exception e) {
-            LogSystem.error("[VanillaManager] ❌ Ошибка при установке Java: " + e.getMessage(), e);
-            LogSystem.warn("[VanillaManager] ⚠️  Пытаемся использовать системную Java...");
+            LogService.error("[VanillaManager] ❌ Ошибка при установке Java: " + e.getMessage(), e);
+            LogService.warn("[VanillaManager] ⚠️  Пытаемся использовать системную Java...");
             return "java";
         }
     }
@@ -65,14 +65,14 @@ public class VanillaManager {
      */
     public String setupJavaRuntime(String mcVersion, String explicitJavaVersion, ProgressListener listener) {
         int requiredVer = parseJavaVersion(explicitJavaVersion);
-        LogSystem.info("[VanillaManager] 🔧 Используем явно указанную Java версию: " + requiredVer);
+        LogService.info("[VanillaManager] 🔧 Используем явно указанную Java версию: " + requiredVer);
         
         try {
             CrossPlatformJavaInstaller installer = new CrossPlatformJavaInstaller(workDir, listener);
             return installer.installJavaRuntime(requiredVer);
         } catch (Exception e) {
-            LogSystem.error("[VanillaManager] ❌ Ошибка при установке Java " + requiredVer + ": " + e.getMessage(), e);
-            LogSystem.warn("[VanillaManager] ⚠️  Пытаемся использовать системную Java...");
+            LogService.error("[VanillaManager] ❌ Ошибка при установке Java " + requiredVer + ": " + e.getMessage(), e);
+            LogService.warn("[VanillaManager] ⚠️  Пытаемся использовать системную Java...");
             return "java";
         }
     }
@@ -87,7 +87,7 @@ public class VanillaManager {
             String numStr = javaVersionStr.replaceAll("[^0-9]", "");
             return Integer.parseInt(numStr);
         } catch (Exception e) {
-            LogSystem.error("[VanillaManager] Не удалось распарсить версию Java: " + javaVersionStr);
+            LogService.error("[VanillaManager] Не удалось распарсить версию Java: " + javaVersionStr);
             return 17; // По умолчанию Java 17
         }
     }

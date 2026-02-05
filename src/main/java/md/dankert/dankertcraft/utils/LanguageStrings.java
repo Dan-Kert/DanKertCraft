@@ -720,7 +720,7 @@ public class LanguageStrings {
     public static void setLanguage(String language) {
         ConfigManager.getInstance().setLanguage(language);
         currentLanguageProperty.set(language);
-        LogSystem.info("[LanguageStrings] Язык изменён на: " + language);
+        LogService.info("[LanguageStrings] Язык изменён на: " + language);
     }
     
     /**
