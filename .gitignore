@@ -32,3 +32,6 @@ tmp/
 # === Специфичные файлы ОС ===
 .DS_Store
 Thumbs.db
+
+# Ignore generated output folder used during builds
+out_build/
