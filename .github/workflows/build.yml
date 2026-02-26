@@ -14,62 +14,122 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Download JavaFX Modules
+      - name: Download JavaFX SDK
         run: |
-          mkdir javafx-sdk
-          $modules = "controls", "fxml", "graphics", "media", "base"
+          # Скачиваем полный JavaFX SDK для Windows (содержит модули)
+          mkdir javafx-sdk-temp
+          $url = "https://gluonhq.com/download/javafx-17.0.10-sdk-windows/"
+          # Или используем Maven Central для скачивания модулей
+          $javafxVersion = "17.0.10"
+          
+          # Скачиваем jmod файлы из Maven Central
+          mkdir javafx-jmods
+          $modules = @("base", "controls", "fxml", "graphics", "media", "swing", "web")
           foreach ($mod in $modules) {
-            $url = "https://repo1.maven.org/maven2/org/openjfx/javafx-$mod/17.0.10/javafx-$mod-17.0.10-win.jar"
-            Invoke-WebRequest -Uri $url -OutFile "javafx-sdk/javafx-$mod.jar"
+            $url = "https://repo1.maven.org/maven2/org/openjfx/javafx-$mod-jmod/$javafxVersion/javafx-$mod-jmod-$javafxVersion.tar.gz"
+            
+            # Also download jar for compilation
+            $jarUrl = "https://repo1.maven.org/maven2/org/openjfx/javafx-$mod/$javafxVersion/javafx-$mod-$javafxVersion-win.jar"
+            try {
+              Invoke-WebRequest -Uri $jarUrl -OutFile "javafx-jmods/javafx-$mod.jar" -ErrorAction SilentlyContinue
+            } catch {
+              Write-Host "⚠️  Предупреждение: не удалось скачать javafx-$mod.jar"
+            }
           }
 
-      - name: Build JAR and EXE
+      - name: Build with Maven
         run: |
-          # 1. Подготовка
-          if (Test-Path out_build) { Remove-Item -Recurse -Force out_build }
-          if (Test-Path dist) { Remove-Item -Recurse -Force dist }
-          mkdir out_build
-          mkdir dist
+          # 1. Очищаем старые артефакты
+          if (Test-Path target) { Remove-Item -Recurse -Force target }
+          if (Test-Path installer) { Remove-Item -Recurse -Force installer }
+          mkdir installer
           
-          # 2. Компиляция
-          Get-ChildItem -Path src/main/java -Filter *.java -Recurse | ForEach-Object { $_.FullName } | Out-File -FilePath sources.txt -Encoding utf8
-          javac -encoding utf8 -cp "javafx-sdk/*;libs/gson-2.10.1.jar" -d out_build "@sources.txt"
+          # 2. Собираем Fat JAR через Maven
+          mvn clean package -DskipTests=true -Djavafx.version=17.0.10
           
-          # 3. Копируем ресурсы и РАСПАКОВЫВАЕМ GSON внутрь (Fat JAR фикс)
-          if (Test-Path src/main/resources) {
-            Copy-Item -Path src/main/resources/* -Destination out_build -Recurse -Force
+          # 3. Проверяем, что JAR создан
+          if (-not (Test-Path "target/DanKertCraft-1.0-SNAPSHOT.jar")) {
+            Write-Host "❌ ОШИБКА: Maven сборка не создала JAR файл!"
+            exit 1
           }
-          cd out_build
-          jar -xf ../libs/gson-2.10.1.jar  # Распаковка Gson для слияния
-          Remove-Item -Recurse -Force META-INF # Чистим подписи библиотеки
-          cd ..
           
-          # 4. Создаем JAR
-          jar --create --file dist/DanKertCraft.jar --main-class md.dankert.dankertcraft.Main -C out_build .
+          # 4. Копируем JAR в директорию для упаковки
+          Copy-Item -Path "target/DanKertCraft-1.0-SNAPSHOT.jar" -Destination "installer/DanKertCraft.jar"
+          Write-Host "✅ JAR скопирован в installer/"
+
+      - name: Create Application Icon (если нужна иконка)
+        run: |
+          # Копируем иконку если её нет в корне
+          if (Test-Path "src/main/resources/icons/mak.ico") {
+            Copy-Item -Path "src/main/resources/icons/mak.ico" -Destination "logo.ico" -Force
+            Write-Host "✅ Иконка скопирована из ресурсов"
+          }
+          if (Test-Path "logo.ico") {
+            Write-Host "✅ Иконка найдена: logo.ico"
+          } else {
+            Write-Host "⚠️  Предупреждение: logo.ico не найдена, используется иконка по умолчанию"
+          }
+
+      - name: Build EXE with jpackage
+        run: |
+          # Получаем путь к Java 17 jmods
+          $JAVA_HOME = "$env:JAVA_HOME"
+          $JMODS_PATH = "$JAVA_HOME\jmods"
           
-          # 5. Сборка EXE с кастомизацией
-          jpackage --type exe `
-            --name "DanKertCraft" `
-            --vendor "DanKert Studio" `
-            --description "The Ultimate Minecraft Launcher by DanKert" `
-            --app-version "1.2.0" `
-            --icon "logo.ico" `
-            --input dist `
-            --dest . `
-            --main-jar DanKertCraft.jar `
-            --main-class md.dankert.dankertcraft.Main `
-            --module-path "${env:JAVA_HOME}\jmods;javafx-sdk" `
-            --add-modules javafx.controls,javafx.fxml,javafx.graphics,javafx.media,jdk.crypto.ec,java.net.http `
-            --win-shortcut `
-            --win-menu `
-            --win-dir-chooser `
-            --win-shortcut-prompt `
-            --java-options "-Xmx2G -Xms512M -Dfile.encoding=UTF-8" `
-            --install-dir "DanKertCraftLauncher" `
-            --win-upgrade-uuid "d85b1a20-1234-4abc-bd12-87654321abcd"
+          Write-Host "JAVA_HOME: $JAVA_HOME"
+          Write-Host "JMODS_PATH: $JMODS_PATH"
+          
+          # Проверяем наличие jmod
+          if (-not (Test-Path $JMODS_PATH)) {
+            Write-Host "❌ ОШИБКА: jmods не найдена в $JMODS_PATH"
+            exit 1
+          }
+          
+          # Подготавливаем параметры jpackage
+          $jpackageArgs = @(
+            "--type", "exe",
+            "--name", "DanKertCraft",
+            "--vendor", "DanKert Studio",
+            "--description", "The Ultimate Minecraft Launcher by DanKert",
+            "--app-version", "1.2.0",
+            "--input", "installer",
+            "--dest", ".",
+            "--main-jar", "DanKertCraft.jar",
+            "--main-class", "md.dankert.dankertcraft.Main",
+            "--module-path", "$JMODS_PATH",
+            "--add-modules", "java.base,java.desktop,java.logging,java.net.http,jdk.crypto.ec",
+            "--win-shortcut",
+            "--win-menu",
+            "--win-dir-chooser",
+            "--java-options", "-Xmx2G -Xms512M -Dfile.encoding=UTF-8",
+            "--install-dir", "DanKertCraftLauncher",
+            "--win-upgrade-uuid", "d85b1a20-1234-4abc-bd12-87654321abcd"
+          )
+          
+          # Добавляем иконку если она существует
+          if (Test-Path "logo.ico") {
+            $jpackageArgs += @("--icon", "logo.ico")
+            Write-Host "✅ Иконка включена в EXE"
+          } else {
+            Write-Host "⚠️  Иконка не будет использована"
+          }
+          
+          # Запускаем jpackage
+          & jpackage @jpackageArgs
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ ОШИБКА при создании EXE!"
+            Write-Host "Проверьте логи выше для деталей"
+            exit 1
+          }
+          
+          Write-Host "✅ EXE успешно создан!"
 
       - name: Upload EXE Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: DanKertCraft-Windows-Installer
-          path: "*.exe"
+          path: |
+            DanKertCraft-*.exe
+            installer/DanKertCraft.jar
