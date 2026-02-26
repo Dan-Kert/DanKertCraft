@@ -137,7 +137,19 @@ public class Themes {
                 "-fx-scale-x: 1.02; -fx-scale-y: 1.02; " +
                 "} " +
 
-                ".hyperlink { -fx-text-fill: " + Colors.ACCENT_COLOR + "; } ";
+                ".hyperlink { -fx-text-fill: " + Colors.ACCENT_COLOR + "; } " +
+
+                "/* Settings window specific styles */ " +
+                ".settings-layout { -fx-background-color: " + Colors.BG_PRIMARY + "; -fx-padding: 25; } " +
+                ".settings-section { " +
+                "-fx-background-color: " + Colors.BG_SECONDARY + "; " +
+                "-fx-border-color: " + Colors.BORDER_COLOR + "; " +
+                "-fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 12; } " +
+                ".settings-title { -fx-font-size: " + Sizes.FONT_HEADER + "px; -fx-font-weight: bold; -fx-text-fill: " + Colors.ACCENT_COLOR + "; } " +
+                ".settings-section-title { -fx-text-fill: " + Colors.SUCCESS_COLOR + "; -fx-font-weight: bold; -fx-font-size: 13px; } " +
+                ".settings-desc { -fx-text-fill: " + Colors.TEXT_SECONDARY + "; -fx-font-size: 11px; } " +
+                ".settings-close { -fx-font-size: 13px; -fx-font-weight: bold; -fx-background-color: " + Colors.BUTTON_PRIMARY + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; } " +
+                ".settings-clean-btn { -fx-background-color: " + Colors.ERROR_COLOR + "; -fx-text-fill: white; -fx-background-radius: 6; -fx-cursor: hand; } ";
     }
 
     // ==========================================

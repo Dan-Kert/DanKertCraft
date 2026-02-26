@@ -28,6 +28,10 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 
 public class LauncherUI extends Application {
     private final String workDir = SystemContext.getWorkingDirectory();
@@ -40,6 +44,10 @@ public class LauncherUI extends Application {
 
     // НОВОЕ: Нижняя панель прогресса
     private DownloadStatusBar downloadStatusBar = new DownloadStatusBar();
+    // Трекер запущенных процессов: имя -> Process
+    private final Map<String, Process> runningProcesses = new ConcurrentHashMap<>();
+    // Флаги состояния для binding в UI: имя -> BooleanProperty
+    private final Map<String, BooleanProperty> runningProps = new ConcurrentHashMap<>();
 
     @Override
     public void start(Stage primaryStage) {
@@ -49,6 +57,14 @@ public class LauncherUI extends Application {
         ConfigManager.getInstance();
         CacheManager.getInstance().clearOldCache();
         this.currentUsername = ConfigManager.getInstance().getUsername();
+        // ensure autorun setting is applied on launch in case config was true
+        if (ConfigManager.getInstance().getBooleanSetting("autorun_on_startup", false)) {
+            try {
+                SystemContext.setAutorun(true);
+            } catch (Exception e) {
+                LogService.error("Failed to apply autorun setting on startup", e);
+            }
+        }
 
         // 2. Инициализация UI компонентов
         sidebar = new Sidebar(
@@ -80,8 +96,19 @@ public class LauncherUI extends Application {
                 ".label { -fx-text-fill: #ecf0f1; }" +
                 ".scroll-pane { -fx-background-color: transparent; -fx-background: transparent; }" +
                 ".scroll-pane .viewport { -fx-background-color: transparent; }" +
-                ".game-card { -fx-background-color: #1e1e1e; -fx-background-radius: 12; }" +
-                ".game-card:hover { -fx-background-color: #252525; -fx-scale-x: 1.03; -fx-scale-y: 1.03; -fx-cursor: hand; }" +
+                ".game-card {" +
+                "    -fx-background-color: rgba(255, 255, 255, 0.03);" + // Почти прозрачный белый (эффект стекла)
+                "    -fx-background-radius: 16;" +
+                "    -fx-border-color: rgba(255, 255, 255, 0.08);" +   // Очень тонкая светлая граница
+                "    -fx-border-radius: 16;" +
+                "    -fx-border-width: 1;" +
+                "}" +
+                ".game-card:hover {" +
+                "    -fx-background-color: rgba(255, 255, 255, 0.08);" + // Чуть ярче при наведении
+                "    -fx-border-color: rgba(255, 255, 255, 0.2);" +    // Граница становится заметнее
+                "    -fx-scale-x: 1.05; -fx-scale-y: 1.05;" +           // Плавное увеличение
+                "    -fx-cursor: hand;" +
+                "}" +
                 ".recent-card { -fx-background-color: #1e1e1e; -fx-background-radius: 8; }" +
                 ".recent-card:hover { -fx-background-color: #252525; -fx-cursor: hand; }";
         scene.getStylesheets().add(css);
@@ -94,22 +121,29 @@ public class LauncherUI extends Application {
         }
 
         // 5. Настройка Stage (Окна)
-        primaryStage.setTitle("DanKertCraft Launcher");
-
-        // УСТАНОВКА ИКОНКИ
+        primaryStage.setTitle("DanKertCraft");
+        
+        // Включаем поддержку прозрачности для корректного отображения меню с закруглёнными углами
         try {
-            // Если ты хочешь использовать именно logo.ico (для Windows),
-            // JavaFX может его не прочитать. Лучше использовать .png версию иконки.
-            InputStream iconStream = getClass().getResourceAsStream("/icons/minecraft.png");
+            primaryStage.initStyle(javafx.stage.StageStyle.DECORATED);
+        } catch (Exception ignored) {}
+
+        // УСТАНОВКА ИКОНКИ: используем ТОЛЬКО PNG для JavaFX (не загружаем .ico)
+        try {
+            InputStream iconStream = getClass().getResourceAsStream("/icons/mak.png");
             if (iconStream != null) {
                 primaryStage.getIcons().add(new Image(iconStream));
+                LogService.info("[UI] Иконка окна загружена: mak.png");
             } else {
-                // Если minecraft.png нет, попробуем взять иконку блока
+                // Фоллбек на блок-иконку
                 InputStream fallback = getClass().getResourceAsStream("/icons/blocks/standart.png");
-                if (fallback != null) primaryStage.getIcons().add(new Image(fallback));
+                if (fallback != null) {
+                    primaryStage.getIcons().add(new Image(fallback));
+                    LogService.info("[UI] Иконка окна загружена: standart.png");
+                }
             }
         } catch (Exception e) {
-            LogService.info("Ошибка загрузки иконки: " + e.getMessage());
+            LogService.warn("[UI] Ошибка загрузки иконки окна: " + e.getMessage());
         }
 
         primaryStage.setScene(scene);
@@ -129,7 +163,7 @@ public class LauncherUI extends Application {
         SingleInstanceManager.setCommandHandler(cmd -> {
             if (cmd == null) return;
             if (cmd.equalsIgnoreCase("show")) {
-                Platform.runLater(() -> primaryStage.show());
+                Platform.runLater(this::showAndRestore);
             } else if (cmd.startsWith("launch:")) {
                 String inst = cmd.substring("launch:".length());
                 Platform.runLater(() -> startLaunchThread(inst));
@@ -144,6 +178,19 @@ public class LauncherUI extends Application {
     // Метод для получения статус-бара из других окон (например, InstallWindow)
     public DownloadStatusBar getDownloadStatusBar() {
         return downloadStatusBar;
+    }
+
+    /**
+     * Восстанавливает окно лаунчера из системного трея (или от скрытия).
+     * ДОЛЖЕН вызываться через Platform.runLater() из потоков AWT.
+     */
+    private void showAndRestore() {
+        if (primaryStage != null) {
+            primaryStage.show();
+            primaryStage.setIconified(false);
+            primaryStage.toFront();
+            LogService.info("[UI] Окно восстановлено из трея");
+        }
     }
 
     private void startLaunchThread(String instanceName) {
@@ -162,9 +209,19 @@ public class LauncherUI extends Application {
                     // ИСПРАВЛЕНИЕ: Передаем 'this' как ProgressListener
                     Process gameProcess = launcher.launch(instanceName, "4", currentUsername, this);
 
+                    // Регистрируем процесс и отмечаем состояние "запущено" для UI
+                    runningProcesses.put(instanceName, gameProcess);
+                    BooleanProperty prop = runningProps.get(instanceName);
+                    if (prop != null) {
+                        Platform.runLater(() -> prop.set(true));
+                    }
+
                     Platform.runLater(() -> {
-                        LogWindow crashMonitor = new LogWindow(instanceName);
-                        crashMonitor.monitor(gameProcess);
+                        boolean showLog = md.dankert.dankertcraft.config.ConfigManager.getInstance().getBooleanSetting("show_log_window", false);
+                        if (showLog) {
+                            LogWindow crashMonitor = new LogWindow(instanceName);
+                            crashMonitor.monitor(gameProcess);
+                        }
 
                         // Скрывать окно при запуске игры — только если включена настройка
                         boolean hideOnLaunch = md.dankert.dankertcraft.config.ConfigManager.getInstance().getBooleanSetting("hide_launcher_on_game_start", false);
@@ -174,11 +231,19 @@ public class LauncherUI extends Application {
                         } else {
                             LogService.info("[UI] Окно launcher оставлено видимым (hide_on_launch выключен)");
                         }
+                        // Скрываем статус-бар после успешного старта процесса игры
+                        try { downloadStatusBar.hideBarWithAnimation(); } catch (Exception ignored) {}
                     });
 
                     // Ожидаем завершения игры в отдельном потоке (НЕ в UI)
                     int exitCode = gameProcess.waitFor();
-                    
+
+                    // Снимаем флаг запущенной сборки
+                    runningProcesses.remove(instanceName);
+                    if (prop != null) {
+                        Platform.runLater(() -> prop.set(false));
+                    }
+
                     LogService.info("[UI] Игра завершила работу с кодом: " + exitCode);
 
                     // Показываем launcher после завершения игры
@@ -198,6 +263,12 @@ public class LauncherUI extends Application {
                         new Alert(Alert.AlertType.ERROR, "❌ Ошибка запуска: " + ex.getMessage()).show();
                         downloadStatusBar.hideBar();
                     });
+                    // очистим флаг в случае ошибки
+                    runningProcesses.remove(instanceName);
+                    BooleanProperty propErr = runningProps.get(instanceName);
+                    if (propErr != null) {
+                        Platform.runLater(() -> propErr.set(false));
+                    }
                     throw ex;
                 }
                 return null;
@@ -207,6 +278,19 @@ public class LauncherUI extends Application {
         // Запускаем отображение в статус-баре
         downloadStatusBar.start("Запуск " + instanceName, launchTask);
         new Thread(launchTask).start();
+    }
+
+    // Останавливает запущенный процесс игры для указанной сборки (если найден)
+    private void stopInstance(String instanceName) {
+        Process p = runningProcesses.get(instanceName);
+        if (p != null && p.isAlive()) {
+            try {
+                LogService.info("[UI] Останавливаем экземпляр: " + instanceName);
+                p.destroy();
+            } catch (Exception e) {
+                LogService.error("[UI] Не удалось остановить экземпляр: " + instanceName, e);
+            }
+        }
     }
 
     // --- ОСТАЛЬНАЯ ЛОГИКА UI (ИКОНКИ, ГРИД) БЕЗ ИЗМЕНЕНИЙ ---
@@ -305,14 +389,15 @@ public class LauncherUI extends Application {
     private void showInstancePage(String instanceName) {
         Platform.runLater(() -> {
             contentArea.getChildren().clear();
-            InstanceView view = new InstanceView(instanceName, this::startLaunchThread, this::showHomeContent);
+            BooleanProperty prop = runningProps.computeIfAbsent(instanceName, k -> new SimpleBooleanProperty(false));
+            InstanceView view = new InstanceView(instanceName, this::startLaunchThread, this::showHomeContent, prop, this::stopInstance);
             contentArea.getChildren().add(view);
         });
     }
 
     private String getIconNameFromInstance(String instanceName) {
         try {
-            File configFile = new File(workDir, "instances/" + instanceName + "/instance.json");
+            File configFile = new File(workDir, "instances" + File.separator + instanceName + File.separator + "instance.json");
             if (configFile.exists()) {
                 JsonObject json = JsonParser.parseString(Files.readString(configFile.toPath())).getAsJsonObject();
                 boolean downloaded = json.has("downloaded") && json.get("downloaded").getAsBoolean();
@@ -341,6 +426,10 @@ public class LauncherUI extends Application {
                 if (file.exists() && file.canRead()) {
                     try (FileInputStream fis = new FileInputStream(file)) {
                         img = new Image(fis);
+                        if (img.isError()) {
+                            LogService.warn("[LauncherUI] Ошибка загрузки кастомной иконки (образ некорректен) " + iconName);
+                            img = null;
+                        }
                     } catch (Exception e) {
                         LogService.warn("[LauncherUI] Ошибка загрузки кастомной иконки " + iconName + ": " + e.getMessage());
                     }
@@ -349,16 +438,27 @@ public class LauncherUI extends Application {
             if (img == null) {
                 String resourcePath = "/icons/blocks/" + (iconName != null ? iconName : "standart.png");
                 InputStream is = getClass().getResourceAsStream(resourcePath);
-                if (is == null) {
+                // Гарантированный фоллбек на standart.png (но не для самого standart.png)
+                if (is == null && !"standart.png".equals(iconName)) {
                     is = getClass().getResourceAsStream("/icons/blocks/standart.png");
                 }
                 if (is != null) {
-                    img = new Image(is);
-                } else {
-                    LogService.warn("[LauncherUI] Не удалось загрузить ни одну иконку для " + iconName);
+                    try {
+                        img = new Image(is);
+                        if (img.isError()) {
+                            LogService.warn("[LauncherUI] Ошибка загрузки иконки (образ некорректен) " + iconName);
+                            img = null;
+                        }
+                    } catch (Exception e) {
+                        LogService.warn("[LauncherUI] Ошибка преобразования потока иконки: " + e.getMessage());
+                    }
                 }
             }
-            if (img != null) iv.setImage(img);
+            if (img != null) {
+                iv.setImage(img);
+            } else {
+                LogService.warn("[LauncherUI] Не удалось загрузить иконку для " + iconName);
+            }
         } catch (Exception e) {
             LogService.error("[LauncherUI] Ошибка при загрузке иконки: " + e.getMessage(), e);
         }
@@ -366,78 +466,14 @@ public class LauncherUI extends Application {
     }
 
     private void createSystemTray() {
-        if (!java.awt.SystemTray.isSupported()) return;
-        try {
-            java.awt.Image trayImg = null;
-            try {
-                var is = getClass().getResourceAsStream("/icons/minecraft.png");
-                if (is != null) trayImg = ImageIO.read(is);
-            } catch (Exception e) {
-                LogService.warn("[Tray] Не удалось загрузить иконку для трея: " + e.getMessage());
-            }
-
-            java.awt.PopupMenu popup = new java.awt.PopupMenu();
-
-            java.awt.MenuItem openItem = new java.awt.MenuItem(LanguageStrings.get("button.open"));
-            openItem.addActionListener(e -> Platform.runLater(() -> primaryStage.show()));
-            popup.add(openItem);
-
-            java.awt.Menu launchMenu = new java.awt.Menu(LanguageStrings.get("menu.launch"));
-            popup.add(launchMenu);
-
-            // Build initial list
-            rebuildTrayLaunchMenu(launchMenu);
-
-            // Обновляем список при наведении (динамически)
-            // java.awt.Menu не поддерживает addActionListener напрямую, поэтому мы обновляем при клике на сам пункт
-            // (fallback - меню будет обновлено при каждом открытии трея)
-
-            popup.addSeparator();
-
-            java.awt.MenuItem exitItem = new java.awt.MenuItem(LanguageStrings.get("button.exit"));
-            exitItem.addActionListener(e -> {
-                LogService.info("[Tray] Выход по нажатию в трее");
-                SingleInstanceManager.stop();
-                Platform.exit();
-                System.exit(0);
-            });
-            popup.add(exitItem);
-
-            java.awt.TrayIcon trayIcon = new java.awt.TrayIcon(trayImg != null ? trayImg : java.awt.Toolkit.getDefaultToolkit().createImage(new byte[0]));
-            trayIcon.setImageAutoSize(true);
-            trayIcon.setPopupMenu(popup);
-            trayIcon.addActionListener(e -> Platform.runLater(() -> primaryStage.show()));
-
-            java.awt.SystemTray.getSystemTray().add(trayIcon);
-        } catch (Exception e) {
-            LogService.warn("[Tray] Не удалось инициализировать system tray: " + e.getMessage());
-        }
+        TrayManager.install(primaryStage, workDir, name -> startLaunchThread(name));
     }
 
-    private void rebuildTrayLaunchMenu(java.awt.Menu launchMenu) {
-        try {
-            launchMenu.removeAll();
-            File instancesDir = new File(workDir, "instances");
-            File[] folders = instancesDir.listFiles(File::isDirectory);
-            if (folders != null) {
-                java.util.Arrays.sort(folders, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
-                for (File f : folders) {
-                    java.awt.MenuItem mi = new java.awt.MenuItem(f.getName());
-                    mi.addActionListener(e -> {
-                        // Отправляем команду на основной поток
-                        Platform.runLater(() -> startLaunchThread(f.getName()));
-                    });
-                    launchMenu.add(mi);
-                }
-            } else {
-                java.awt.MenuItem none = new java.awt.MenuItem("—");
-                none.setEnabled(false);
-                launchMenu.add(none);
-            }
-        } catch (Exception e) {
-            LogService.warn("[Tray] Ошибка при заполнении меню запуска: " + e.getMessage());
-        }
-    }
+
+
+    /**
+     * Собирает список до 3-х недавно запущенных инстансов (по last_launch).
+     */
 
     public static void main(String[] args) {
         final int SINGLE_PORT = 42345;

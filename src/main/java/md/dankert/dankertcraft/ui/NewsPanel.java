@@ -5,6 +5,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import md.dankert.dankertcraft.utils.LanguageStrings;
+import md.dankert.dankertcraft.utils.IconProvider;
 
 public class NewsPanel extends StackPane {
 
@@ -39,11 +40,11 @@ public class NewsPanel extends StackPane {
         welcome.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.ACCENT_COLOR + "; -fx-letter-spacing: 1.5px;");
 
         // 2. Заголовок
-        Label newsTitle = new Label("ZOVVVVVVVV 2.2");
+        Label newsTitle = new Label("DanKertCraft Beta TEST");
         newsTitle.setStyle("-fx-font-size: 26px; -fx-font-weight: 900; -fx-text-fill: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 0);");
 
         // 3. Текст описания
-        Label newsText = new Label(t("news.test"));
+        Label newsText = new Label(IconProvider.extractText(t("news.test")));
         newsText.setWrapText(true);
         newsText.setStyle("-fx-font-size: 13px; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-line-spacing: 5;");
 

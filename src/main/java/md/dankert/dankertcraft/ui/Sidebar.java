@@ -118,46 +118,64 @@ public class Sidebar extends VBox {
     }
 
     private Button createSidebarButton(String iconPath, String tooltipText, int size) {
-        Button btn = new Button();
-        btn.getStyleClass().add("sidebar-btn");
+    Button btn = new Button();
+    
+    // Убираем стандартный фон, рамки и настраиваем курсор
+    btn.setStyle(
+        "-fx-background-color: transparent; " + // Делаем кнопку прозрачной
+        "-fx-background-insets: 0; " +          // Убираем системные отступы фона
+        "-fx-padding: 0; " +                     // Убираем внутренние пустые поля
+        "-fx-cursor: hand;"                      // Указатель при наведении
+    );
 
-        ImageView iv = new ImageView();
-        iv.setFitWidth(size);
-        iv.setFitHeight(size);
-        iv.setPreserveRatio(true);
-        iv.setSmooth(true);
+    ImageView iv = new ImageView();
+    iv.setFitWidth(size);
+    iv.setFitHeight(size);
+    iv.setPreserveRatio(true);
+    iv.setSmooth(true);
 
-        try {
-            Image img = null;
-            if (iconPath.startsWith("custom:")) {
-                // Используем File.separator для кроссплатформности
-                File file = new File(workDir, "custom_icons" + File.separator + iconPath.replace("custom:", ""));
-                if (file.exists()) img = new Image(new FileInputStream(file));
-            } else if (iconPath.startsWith("/")) {
-                InputStream is = getClass().getResourceAsStream(iconPath);
-                if (is != null) img = new Image(is);
-            } else {
-                InputStream is = getClass().getResourceAsStream("/icons/blocks/" + iconPath);
-                if (is == null) is = getClass().getResourceAsStream("/icons/blocks/standart.png");
-                if (is != null) img = new Image(is);
-            }
-
-            if (img == null) {
-                InputStream fallback = getClass().getResourceAsStream("/icons/blocks/standart.png");
-                if (fallback != null) img = new Image(fallback);
-            }
-            iv.setImage(img);
-        } catch (Exception e) {
-            LogService.error("Ошибка Sidebar: " + iconPath);
+    try {
+        Image img = null;
+        if (iconPath.startsWith("custom:")) {
+            File file = new File(workDir, "custom_icons" + File.separator + iconPath.replace("custom:", ""));
+            if (file.exists()) img = new Image(new FileInputStream(file));
+        } else if (iconPath.startsWith("/")) {
+            InputStream is = getClass().getResourceAsStream(iconPath);
+            if (is != null) img = new Image(is);
+        } else {
+            InputStream is = getClass().getResourceAsStream("/icons/blocks/" + iconPath);
+            if (is == null) is = getClass().getResourceAsStream("/icons/blocks/standart.png");
+            if (is != null) img = new Image(is);
         }
 
-        Circle clip = new Circle(size / 2.0, size / 2.0, size / 2.0);
-        iv.setClip(clip);
-        btn.setGraphic(iv);
-        btn.setTooltip(new Tooltip(tooltipText));
-        return btn;
+        if (img == null) {
+            InputStream fallback = getClass().getResourceAsStream("/icons/blocks/standart.png");
+            if (fallback != null) img = new Image(fallback);
+        }
+        iv.setImage(img);
+    } catch (Exception e) {
+        LogService.error("Ошибка Sidebar (иконка: " + iconPath + "): " + e.getMessage());
     }
 
+    // Скругление иконки (Clip)
+    Circle clip = new Circle(size / 2.0, size / 2.0, size / 2.0);
+    iv.setClip(clip);
+    
+    btn.setGraphic(iv);
+    
+    // Тултип (подсказка при наведении)
+    if (tooltipText != null && !tooltipText.isEmpty()) {
+        btn.setTooltip(new Tooltip(tooltipText));
+    }
+
+    // Добавляем эффект изменения прозрачности при наведении и нажатии
+    btn.setOnMouseEntered(e -> btn.setOpacity(0.85));
+    btn.setOnMouseExited(e -> btn.setOpacity(1.0));
+    btn.setOnMousePressed(e -> btn.setOpacity(0.6));
+    btn.setOnMouseReleased(e -> btn.setOpacity(0.85));
+
+    return btn;
+}
     private void startWatching() {
         Thread watcherThread = new Thread(() -> {
             try {

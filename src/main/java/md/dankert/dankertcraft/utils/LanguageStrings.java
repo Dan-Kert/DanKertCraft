@@ -45,11 +45,11 @@ public class LanguageStrings {
         ru.put("check.autorun", "Проверить автозапуск");
         ru.put("delete.all.data", "Удалить все данные");
         ru.put("notification.changed", "Изменено!");
-        ru.put("notification.exported", "✅ Экспортировано!");
-        ru.put("notification.imported", "✅ Импортировано!");
-        ru.put("notification.language.changed", "✅ Язык изменён...");
-        ru.put("notification.deleted", "✅ Удалено!");
-        ru.put("notification.error", "❌ Ошибка!");
+        ru.put("notification.exported", "[ok] Экспортировано!");
+        ru.put("notification.imported", "[ok] Импортировано!");
+        ru.put("notification.language.changed", "[ok] Язык изменён...");
+        ru.put("notification.deleted", "[ok] Удалено!");
+        ru.put("notification.error", "[error] Ошибка!");
         ru.put("stats.launches", "ЗАПУСКИ");
         ru.put("stats.playtime", "ЧАСОВ ИГРЫ");
         ru.put("menu.all.title", "ВСЕ СБОРКИ");
@@ -59,41 +59,53 @@ public class LanguageStrings {
         ru.put("game.size", "Размер:");
         ru.put("browser.title", "Выберите папку");
         ru.put("confirm.delete", "Вы уверены? Это удалит все данные!");
+        ru.put("confirm.delete.title", "Подтверждение удаления");
+        ru.put("confirm.delete.message", "Вы уверены, что хотите удалить эту сборку?");
+        ru.put("confirm.delete.irreversible", "Это действие будет невозможно отменить!");
         ru.put("error.setup", "Ошибка при установке!");
         ru.put("error.launch", "Ошибка при запуске!");
         ru.put("close", "Закрыть");
         ru.put("cancel", "Отмена");
         ru.put("ok", "ОК");
+        ru.put("button.ok", "ОК");
         ru.put("yes", "Да");
         ru.put("no", "Нет");
+        ru.put("button.yes", "Да");
+        ru.put("button.no", "Нет");
         ru.put("save", "Сохранить");
         ru.put("apply", "Применить");
         ru.put("settings.title", "Настройки лаунчера");
-        ru.put("settings.header", "Управление параметрами лаунчера и игры");
-        ru.put("settings.assets", "Очистка ресурсов");
-        ru.put("settings.assets.desc", "Удаление всех скачанных версий асетов и текстур");
+        ru.put("settings.header", "Параметры лаунчера и игры");
+        ru.put("settings.assets", "Очистка ассетов");
+        ru.put("settings.assets.desc", "Удаляет все загруженные ассеты и текстуры (кэш). Это не удалит сохранения игры.");
         ru.put("settings.java", "Управление Java");
-        ru.put("settings.java.desc", "Удаление всех скачанных версий Java Runtime");
+        ru.put("settings.java.desc", "Удаляет скачанные Java Runtime, освобождая место на диске.");
         ru.put("settings.minecraft", "Параметры Minecraft");
         ru.put("settings.minecraft.desc", "Версия, тип мода и выделенная память");
         ru.put("settings.hide", "Скрытие окна при запуске");
         ru.put("settings.hide.desc", "Автоматически скрывает лаунчер при запуске игры");
-        ru.put("settings.autorun", "Автозапуск при старте Windows");
-        ru.put("settings.autorun.desc", "Добавить лаунчер в автозагрузку системы");
+        ru.put("settings.autorun", "Автозапуск");
+        ru.put("settings.autorun.desc", "Включает запуск лаунчера при старте системы (автозагрузка).");
         ru.put("settings.shortcut", "Создание ярлыков");
         ru.put("settings.shortcut.desc", "Создать ярлыки на рабочем столе и в меню Пуск");
-        ru.put("button.delete.assets", "Удалить все асеты");
-        ru.put("button.delete.java", "Удалить все Java");
+        ru.put("button.delete.assets", "Удалить ассеты");
+        ru.put("button.delete.java", "Удалить Java Runtime");
         ru.put("button.delete.minecraft", "Удалить все сборки");
         ru.put("button.delete.data", "Удалить все данные");
         ru.put("button.export", "Экспортировать");
         ru.put("button.import", "Импортировать");
-        ru.put("button.reload", "🔄 Перезагрузить");
-        ru.put("notification.assets.deleted", "✅ Асеты удалены успешно");
-        ru.put("notification.java.deleted", "✅ Java удалены успешно");
-        ru.put("notification.minecraft.deleted", "✅ Сборки удалены успешно");
+        ru.put("button.reload", "[refresh] Перезагрузить");
+        ru.put("notification.assets.deleted", "Асеты успешно удалены");
+        ru.put("notification.java.deleted", "Java Runtime успешно удалены");
+        ru.put("notification.minecraft.deleted", "[ok] Сборки удалены успешно");
         ru.put("settings.cache", "Кэширование");
         ru.put("settings.cache.desc", "Кэширование версий игры всегда включено для быстрого доступа");
+        ru.put("button.delete.cache", "Очистить кэш");
+        ru.put("notification.cache.cleared", "Кэш успешно очищен");
+        ru.put("notification.instance.deleted", "Сборка удалена");
+        ru.put("notification.instance.deleted.content", "Сборка успешно удалена:");
+        ru.put("settings.logwindow", "Показывать окно логов");
+        ru.put("settings.logwindow.desc", "Открывать окно логов после завершения игры. По умолчанию отключено.");
         ru.put("settings.delete", "Удаление всех данных");
         ru.put("settings.delete.desc", "Полное удаление всех загруженных данных сборок, версий и конфигурации");
         ru.put("settings.delete.confirm", "Вы уверены?");
@@ -103,56 +115,56 @@ public class LanguageStrings {
         ru.put("settings.export.path", "Выбор папки экспорта");
         ru.put("settings.export.path.desc", "Выберите папку, куда сохранять экспортированные сборки");
         ru.put("settings.language.title", "Язык интерфейса");
-        ru.put("settings.language.desc", "Выберите язык отображения интерфейса");
+        ru.put("settings.language.desc", "Выберите язык интерфейса приложения.");
         ru.put("button.select.path", "Выбрать папку");
         ru.put("button.export.all", "Экспортировать");
         ru.put("button.select", "Выбрать");
-        ru.put("notification.success", "✅ Успешно");
+        ru.put("notification.success", "[ok] Успешно");
         ru.put("notification.confirm", "Подтверждение");
-        ru.put("notification.warning", "⚠️ Внимание!");
+        ru.put("notification.warning", "[warn] Внимание!");
         ru.put("confirm.proceed", "Продолжить?");
         ru.put("mod.title", "МОДИФИКАЦИИ");
         ru.put("mod.search.title", "ПОИСК МОДОВ");
-        ru.put("mod.search", "🔍 Поиск:");
-        ru.put("mod.download", "⬇ Скачать");
-        ru.put("mod.download.url", "📥 Скачать мод:");
-        ru.put("mod.open.folder", "📁 Открыть папку");
-        ru.put("mod.open.modrinth", "🌐 Открыть в Modrinth");
-        ru.put("mod.hint", "💡 Подсказка: выберите мод из списка и нажмите 'Скачать' для установки");
-        ru.put("mod.error.name", "❌ Введите название мода для поиска");
-        ru.put("mod.searching", "🔄 Поиск модов: '");
-        ru.put("mod.search.error", "❌ ОШИБКА ПОИСКА");
+        ru.put("mod.search", "[search] Поиск:");
+        ru.put("mod.download", "[download] Скачать");
+        ru.put("mod.download.url", "[download] Скачать мод:");
+        ru.put("mod.open.folder", "[folder] Открыть папку");
+        ru.put("mod.open.modrinth", "[web] Открыть в Modrinth");
+        ru.put("mod.hint", "[info] Подсказка: выберите мод из списка и нажмите 'Скачать' для установки");
+        ru.put("mod.error.name", "[error] Введите название мода для поиска");
+        ru.put("mod.searching", "[refresh] Поиск модов: '");
+        ru.put("mod.search.error", "[error] ОШИБКА ПОИСКА");
         ru.put("mod.open.error", "Не удалось открыть папку: ");
-        ru.put("mod.tab.local", "📦 Локальные моды");
-        ru.put("mod.tab.modrinth", "🌐 Modrinth");
-        ru.put("mod.add", "➕ Добавить мод");
-        ru.put("mod.delete", "🗑 Удалить");
-        ru.put("mod.refresh", "🔄 Обновить");
+        ru.put("mod.tab.local", "[package] Локальные моды");
+        ru.put("mod.tab.modrinth", "[web] Modrinth");
+        ru.put("mod.add", "[add] Добавить мод");
+        ru.put("mod.delete", "[delete] Удалить");
+        ru.put("mod.refresh", "[refresh] Обновить");
         ru.put("mod.info", "Поддерживаемые форматы: .jar, .zip | Всего модов: ");
-        ru.put("mod.version.info", "📦 Версия: ");
-        ru.put("mod.loader", "🔧 Модлоадер: ");
-        ru.put("mod.author", "👤 Автор: ");
-        ru.put("mod.downloads", "⬇ ");
+        ru.put("mod.version.info", "[package] Версия: ");
+        ru.put("mod.loader", "[wrench] Модлоадер: ");
+        ru.put("mod.author", "[user] Автор: ");
+        ru.put("mod.downloads", "[download] ");
         ru.put("mod.downloads.text", " загрузок");
         ru.put("mod.more", " еще");
-        ru.put("button.settings", "⚙ Настройки");
-        ru.put("button.export", "📤 Экспорт");
-        ru.put("button.add.icon", "➕ Добавить свою иконку");
-        ru.put("button.select.icon", "📁 Выбрать иконку");
-        ru.put("button.import", "📥 Импорт");
-        ru.put("button.logs.copy", "📋 Копировать логи");
-        ru.put("button.crash.open", "🔍 Открыть crash-report");
-        ru.put("button.logs.clear", "🗑️ Очистить логи");
-        ru.put("button.cancel", "✕ Отмена");
-        ru.put("label.ready", "● Готов к игре");
+        ru.put("button.settings", "[wrench] Настройки");
+        ru.put("button.export", "[export] Экспорт");
+        ru.put("button.add.icon", "[add] Добавить свою иконку");
+        ru.put("button.select.icon", "[folder] Выбрать иконку");
+        ru.put("button.import", "[download] Импорт");
+        ru.put("button.logs.copy", "[clipboard] Копировать логи");
+        ru.put("button.crash.open", "[search] Открыть crash-report");
+        ru.put("button.logs.clear", "[delete] Очистить логи");
+        ru.put("button.cancel", "[close] Отмена");
+        ru.put("label.ready", "Готов к игре");
         ru.put("label.status", "Игра запущена...");
         ru.put("label.nick.new", "Введите новый никнейм игрока:");
-        ru.put("label.icon", "🖼️ Иконка сборки:");
+        ru.put("label.icon", "[image] Иконка сборки:");
         ru.put("label.name", "Название сборки:");
         ru.put("label.nickname", "Никнейм:");
         ru.put("label.memory", "Выделенная память (ГБ):");
         ru.put("label.java", "Версия Java:");
-        ru.put("label.launcher", "🎮 Менеджер установок");
+        ru.put("label.launcher", "[game] Менеджер установок");
         ru.put("label.launch.params", "ПАРАМЕТРЫ ЗАПУСКА");
         ru.put("label.install.params", "ОЗУ (ГБ):");
         ru.put("label.java.version", "Версия Java:");
@@ -182,26 +194,27 @@ public class LanguageStrings {
         ru.put("mod.tab.modrinth", "🌐 Modrinth");
         
         // InstallWindow
-        ru.put("window.install", "🎮 Менеджер установок");
-        ru.put("button.choose.icon", "📁 Выбрать иконку");
-        ru.put("label.build.icon", "🖼️ Иконка сборки:");
+        ru.put("window.install", "[game] Менеджер установок");
+        ru.put("button.choose.icon", "[folder] Выбрать иконку");
+        ru.put("label.build.icon", "[image] Иконка сборки:");
         ru.put("label.build.name", "Название сборки:");
         ru.put("label.nickname", "Никнейм:");
         ru.put("label.ram", "ОЗУ (ГБ):");
         ru.put("label.java.version", "Версия Java:");
-        ru.put("button.install", "▶️ УСТАНОВИТЬ");
+        ru.put("button.install", "[play] УСТАНОВИТЬ");
         
         // InstanceView
         ru.put("button.play", "ИГРАТЬ");
-        ru.put("button.folder", "📁 Папка");
-        ru.put("button.refresh", "🔄");
+        ru.put("button.stop", "Остановить");
+        ru.put("button.folder", "[folder] Папка");
+        ru.put("button.refresh", "[refresh]");
         ru.put("label.ram.example", "Например: 4");
         
         // ModWindow
-        ru.put("button.add.mod", "➕ Добавить мод");
-        ru.put("button.delete.mod", "🗑 Удалить");
-        ru.put("button.refresh.mods", "🔄 Обновить");
-        ru.put("button.open.folder.mods", "📁 Открыть папку");
+        ru.put("button.add.mod", "[add] Добавить мод");
+        ru.put("button.delete.mod", "[delete] Удалить");
+        ru.put("button.refresh.mods", "[refresh] Обновить");
+        ru.put("button.open.folder.mods", "[folder] Открыть папку");
         
         // InstanceView stats labels
         ru.put("stat.version", "ВЕРСИЯ");
@@ -209,15 +222,16 @@ public class LanguageStrings {
         ru.put("stat.memory", "ПАМЯТЬ");
         ru.put("stat.launches", "ЗАПУСКИ");
         ru.put("stat.playtime", "ЧАСОВ ИГРЫ");
+        ru.put("label.screenshots", "Скриншоты");
         
         // InstanceView action buttons
-        ru.put("button.change.icon", "🖼️ Сменить иконку");
-        ru.put("button.change.settings", "⚙️ Изменить ОЗУ/Java");
-        ru.put("button.change.nickname", "✎ Изменить никнейм");
-        ru.put("button.export.build", "📤 Экспорт сборки");
-        ru.put("button.delete.build", "🗑️ Удалить сборку");
-        ru.put("button.mods", "🧩 Моды");
-        ru.put("button.open.folder", "📁 Папка игры");
+        ru.put("button.change.icon", "[image] Сменить иконку");
+        ru.put("button.change.settings", "[wrench] Изменить ОЗУ/Java");
+        ru.put("button.change.nickname", "[edit] Изменить никнейм");
+        ru.put("button.export.build", "[export] Экспорт сборки");
+        ru.put("button.delete.build", "[delete] Удалить сборку");
+        ru.put("button.mods", "[mods] Моды");
+        ru.put("button.open.folder", "[folder] Папка игры");
         
         // ModUI
         ru.put("label.no.mods", "Нет установленных модов");
@@ -302,23 +316,23 @@ public class LanguageStrings {
         ru.put("error.select.mod.delete", "Выберите мод для удаления");
         
         // LogWindow
-        ru.put("button.copy.logs", "📋 Копировать логи");
-        ru.put("button.clear.logs", "🗑️ Очистить логи");
-        ru.put("label.logs.hint", "ℹ️ Здесь отображаются все логи запуска и работы игры.");
+        ru.put("button.copy.logs", "[clipboard] Копировать логи");
+        ru.put("button.clear.logs", "[delete] Очистить логи");
+        ru.put("label.logs.hint", "[info] Здесь отображаются все логи запуска и работы игры.");
         ru.put("label.logs.copied", "Логи скопированы в буфер обмена");
         
         // IconSelector
-        ru.put("button.add.icon", "➕ Добавить свою иконку");
+        ru.put("button.add.icon", "[add] Добавить свою иконку");
         ru.put("window.icon.select", "Выбор иконки сборки");
         
         // DownloadStatusBar
         ru.put("label.stage.initializing", "Инициализация...");
-        ru.put("label.stage.completed", "✅ Завершено");
-        ru.put("label.stage.error", "❌ Ошибка");
+        ru.put("label.stage.completed", "[ok] Завершено");
+        ru.put("label.stage.error", "[error] Ошибка");
         ru.put("label.critical.error", "КРИТИЧЕСКАЯ ОШИБКА:");
         
         // NewsPanel
-        ru.put("news.test", "Последние новости");
+        ru.put("news.test", "Beta TEST");
 
         // InstanceView
         ru.put("button.settings", "Настройки");
@@ -340,6 +354,11 @@ public class LanguageStrings {
         ru.put("button.play", "ИГРАТЬ");
         ru.put("button.folder", "ПАПКА ИГРЫ");
         ru.put("button.mods", "МОДЫ");
+        ru.put("recent.title", "Последние сборки");
+        ru.put("button.open", "Открыть лаунчер");
+        ru.put("button.exit", "Закрыть лаунчер");
+        ru.put("button.hide", "Скрыть лаунчер");
+        ru.put("button.hide", "Скрыть лаунчер");
         
         // Английские переводы
         Map<String, String> en = new HashMap<>();
@@ -368,11 +387,11 @@ public class LanguageStrings {
         en.put("check.autorun", "Check Autorun");
         en.put("delete.all.data", "Delete All Data");
         en.put("notification.changed", "Changed!");
-        en.put("notification.exported", "✅ Exported!");
-        en.put("notification.imported", "✅ Imported!");
-        en.put("notification.language.changed", "✅ Language changed...");
-        en.put("notification.deleted", "✅ Deleted!");
-        en.put("notification.error", "❌ Error!");
+        en.put("notification.exported", "[ok] Exported!");
+        en.put("notification.imported", "[ok] Imported!");
+        en.put("notification.language.changed", "[ok] Language changed...");
+        en.put("notification.deleted", "[ok] Deleted!");
+        en.put("notification.error", "[error] Error!");
         en.put("stats.launches", "LAUNCHES");
         en.put("stats.playtime", "HOURS PLAYED");
         en.put("menu.all.title", "ALL BUILDS");
@@ -382,39 +401,56 @@ public class LanguageStrings {
         en.put("game.size", "Size:");
         en.put("browser.title", "Select Folder");
         en.put("confirm.delete", "Are you sure? This will delete all data!");
+        en.put("confirm.delete.title", "Delete confirmation");
+        en.put("confirm.delete.message", "Are you sure you want to delete this build?");
+        en.put("confirm.delete.irreversible", "This action cannot be undone!");
         en.put("error.setup", "Error during setup!");
         en.put("error.launch", "Error during launch!");
         en.put("close", "Close");
         en.put("cancel", "Cancel");
         en.put("ok", "OK");
+        en.put("button.ok", "OK");
         en.put("yes", "Yes");
         en.put("no", "No");
+        en.put("button.yes", "Yes");
+        en.put("button.no", "No");
         en.put("save", "Save");
         en.put("apply", "Apply");
         en.put("settings.title", "Launcher Settings");
-        en.put("settings.header", "Manage launcher and game settings");
-        en.put("settings.assets", "Clean Resources");
-        en.put("settings.assets.desc", "Remove all downloaded asset versions and textures");
+        en.put("settings.header", "Launcher and game settings");
+        en.put("settings.assets", "Clean assets");
+        en.put("settings.assets.desc", "Removes downloaded assets and textures (cache). This will not remove game saves.");
         en.put("settings.java", "Java Management");
-        en.put("settings.java.desc", "Remove all downloaded Java Runtime versions");
+        en.put("settings.java.desc", "Removes downloaded Java Runtime versions to free disk space.");
         en.put("settings.minecraft", "Minecraft Settings");
         en.put("settings.minecraft.desc", "Version, mod type and allocated memory");
         en.put("settings.hide", "Hide window on game launch");
-        en.put("settings.hide.desc", "Automatically hides launcher when game starts");
-        en.put("settings.autorun", "Autostart on Windows startup");
-        en.put("settings.autorun.desc", "Add launcher to system autostart");
+        en.put("settings.hide.desc", "Automatically hides the launcher when the game starts");
+        en.put("settings.autorun", "Autostart");
+        en.put("settings.autorun.desc", "Enable launcher autostart when the system starts.");
+        en.put("button.delete.cache", "Clear cache");
+        en.put("notification.cache.cleared", "Cache cleared successfully");
+        en.put("notification.instance.deleted", "Instance deleted");
+        en.put("notification.instance.deleted.content", "Instance deleted successfully:");
+        en.put("settings.logwindow", "Show log window");
+        en.put("settings.logwindow.desc", "Open the log window after the game exits. Disabled by default.");
         en.put("settings.shortcut", "Create shortcuts");
         en.put("settings.shortcut.desc", "Create shortcuts on desktop and Start menu");
-        en.put("button.delete.assets", "Delete all assets");
-        en.put("button.delete.java", "Delete all Java");
+        en.put("button.delete.assets", "Delete assets");
+        en.put("button.delete.java", "Delete Java Runtime");
         en.put("button.delete.minecraft", "Delete all builds");
         en.put("button.delete.data", "Delete all data");
         en.put("button.export", "Export");
         en.put("button.import", "Import");
-        en.put("button.reload", "🔄 Reload");
-        en.put("notification.assets.deleted", "✅ Assets deleted successfully");
-        en.put("notification.java.deleted", "✅ Java deleted successfully");
-        en.put("notification.minecraft.deleted", "✅ Builds deleted successfully");
+        en.put("button.reload", "[refresh] Reload");
+        en.put("recent.title", "Latest builds");
+        en.put("button.open", "Open Launcher");
+        en.put("button.exit", "Close Launcher");
+        en.put("button.hide", "Hide Launcher");
+        en.put("button.hide", "Hide Launcher");
+        en.put("notification.assets.deleted", "Assets deleted successfully");
+        en.put("notification.java.deleted", "Java Runtime deleted successfully");
+        en.put("notification.minecraft.deleted", "[ok] Builds deleted successfully");
         en.put("settings.cache", "Caching");
         en.put("settings.cache.desc", "Game version caching is always enabled for quick access");
         en.put("settings.delete", "Delete All Data");
@@ -426,13 +462,13 @@ public class LanguageStrings {
         en.put("settings.export.path", "Select export folder");
         en.put("settings.export.path.desc", "Select folder to save exported builds");
         en.put("settings.language.title", "Language");
-        en.put("settings.language.desc", "Select interface display language");
+        en.put("settings.language.desc", "Select the application interface language.");
         en.put("button.select.path", "Select Folder");
         en.put("button.export.all", "Export");
         en.put("button.select", "Select");
-        en.put("notification.success", "✅ Success");
+        en.put("notification.success", "[ok] Success");
         en.put("notification.confirm", "Confirmation");
-        en.put("notification.warning", "⚠️ Warning!");
+        en.put("notification.warning", "[warn] Warning!");
         en.put("confirm.proceed", "Proceed?");
         en.put("mod.title", "MODIFICATIONS");
         en.put("mod.search.title", "SEARCH MODS");
@@ -504,6 +540,7 @@ public class LanguageStrings {
         
         // InstanceView
         en.put("button.play", "PLAY");
+        en.put("button.stop", "STOP");
         en.put("button.folder", "📁 Folder");
         en.put("button.refresh", "🔄");
         en.put("label.ram.example", "For example: 4");
@@ -520,6 +557,7 @@ public class LanguageStrings {
         en.put("stat.memory", "MEMORY");
         en.put("stat.launches", "LAUNCHES");
         en.put("stat.playtime", "PLAYTIME HOURS");
+        en.put("label.screenshots", "Screenshots");
         
         // InstanceView action buttons
         en.put("button.change.icon", "🖼️ Change icon");
@@ -657,7 +695,7 @@ public class LanguageStrings {
         en.put("label.critical.error", "CRITICAL ERROR:");
         
         // NewsPanel
-        en.put("news.test", "Latest news");
+        en.put("news.test", "Beta TEST");
 
         // InstanceView
         en.put("button.settings", "Settings");
@@ -724,6 +762,33 @@ public class LanguageStrings {
     }
     
     /**
+     * Получить текст без префиксов иконок.
+     * Удаляет текстовые префиксы вроде "[ok]" и возвращает только текст.
+     * @param key ключ переводимой строки
+     * @return текст без префиксов иконок
+     */
+    public static String getText(String key) {
+        String text = get(key);
+        if (text != null && text.startsWith("[") && text.contains("]")) {
+            int endBracket = text.indexOf("]");
+            return text.substring(endBracket + 1).trim();
+        }
+        return text;
+    }
+    
+    /**
+     * Получить текст без префиксов иконок для конкретного языка.
+     */
+    public static String getText(String key, String language) {
+        String text = get(key, language);
+        if (text != null && text.startsWith("[") && text.contains("]")) {
+            int endBracket = text.indexOf("]");
+            return text.substring(endBracket + 1).trim();
+        }
+        return text;
+    }
+    
+    /**
      * Получить StringProperty для привязки к UI компонентам.
      * Текст будет автоматически обновляться при смене языка.
      * 
@@ -734,11 +799,11 @@ public class LanguageStrings {
      * @return StringProperty с автоматическим обновлением
      */
     public static StringProperty getStringProperty(String key) {
-        StringProperty property = new SimpleStringProperty(get(key));
+        StringProperty property = new SimpleStringProperty(getText(key));
         
         // Добавляем слушателя: когда язык меняется, обновляем свойство
         currentLanguageProperty.addListener((obs, oldVal, newVal) -> {
-            property.set(get(key, newVal));
+            property.set(getText(key, newVal));
         });
         
         return property;

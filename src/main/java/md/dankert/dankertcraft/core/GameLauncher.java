@@ -94,6 +94,16 @@ public class GameLauncher {
             LogService.info("[GameLauncher] Попытаемся использовать системную Java...");
             javaExec = isWindows ? "java.exe" : "java";
         }
+        
+        // ПРИНУДИТЕЛЬНОЕ ИСПОЛЬЗОВАНИЕ Java 8 ДЛЯ СТАРЫХ ВЕРСИЙ
+        // Для Minecraft 1.0 и других старых версий принудительно используем Java 8
+        if (mcVersion.startsWith("1.0") || mcVersion.startsWith("a") || mcVersion.startsWith("b") || mcVersion.startsWith("c")) {
+            File java8Bin = new File(workDir, "runtime/java8/bin/" + (isWindows ? "java.exe" : "java"));
+            if (java8Bin.exists() && java8Bin.canExecute()) {
+                LogService.info("[GameLauncher] 🔧 Принудительно используем Java 8 для " + mcVersion + ": " + java8Bin.getAbsolutePath());
+                javaExec = java8Bin.getAbsolutePath();
+            }
+        }
 
         List<String> fullClasspath = new ArrayList<>();
         File clientJar = new File(workDir, "versions/" + mcVersion + "/" + mcVersion + ".jar");
@@ -139,16 +149,11 @@ public class GameLauncher {
         cmd.add("-Dcom.mojang.authlib.local.user=" + username);
         cmd.add("-Dauth.session.has_profile=true");
         cmd.add("-Dauth.session.profile=1");
-        
-        // Для совместимости - отключаем онлайн аутентификацию
-        cmd.add("-Dcom.mojang.authlib.yggdrasil.environment=custom");
+        // Не указываем custom yggdrasil environment по умолчанию — это заставляет authlib искать несуществующие сервера
         cmd.add("-Dauth.session.authenticate=false");
 
-        // ФИКСЫ ДЛЯ LINUX
-        if (!System.getProperty("os.name").toLowerCase().contains("win")) {
-            cmd.add("-Dorg.lwjgl.glfw.libname=libglfw.so.3");
-            cmd.add("-Dorg.lwjgl.openal.libname=libopenal.so.1");
-        }
+        // Не принудительно задаём имена системных библиотек LWJGL — это может заставить загрузчик брать
+        // старые системные .so вместо тех, что в папке natives. Даем LWJGL самому найти нативы в natives/.
 
         //cmd.add("-Dorg.lwjgl.system.allocator=system");
         cmd.add("-Dfile.encoding=UTF-8");
@@ -185,17 +190,12 @@ public class GameLauncher {
             String assetId = (vanillaData.assetIndex != null) ? vanillaData.assetIndex.id : "legacy";
             cmd.add("--assetIndex"); cmd.add(assetId);
             
-            // Генерируем детерминированный UUID на основе имени пользователя (для оффлайн режима)
-            String offlineUUID = "OfflinePlayer:" + username;
-            java.security.MessageDigest md5 = java.security.MessageDigest.getInstance("MD5");
-            byte[] digest = md5.digest(offlineUUID.getBytes());
-            digest[6] = (byte)((digest[6] & 0x0f) | 0x30); // Version 3
-            digest[8] = (byte)((digest[8] & 0x3f) | 0x80); // Variant 1
-            String uuid = java.util.UUID.nameUUIDFromBytes(offlineUUID.getBytes()).toString();
-            
+            // Для современных версий (например 1.19) передаём структурно корректные offline-значения,
+            // чтобы authlib не падал при попытке валидации профиля.
+            String uuid = "00000000-0000-0000-0000-000000000000"; // корректный формат UUID
             cmd.add("--uuid"); cmd.add(uuid);
-            cmd.add("--accessToken"); cmd.add("0");
-            cmd.add("--userType"); cmd.add("legacy");
+            cmd.add("--accessToken"); cmd.add("offline");
+            cmd.add("--userType"); cmd.add("mojang");
             cmd.add("--userProperties"); cmd.add("{}");
         }
 
@@ -241,14 +241,25 @@ public class GameLauncher {
             String javaLibDir = null;
             if (!javaExec.equals("java") && !javaExec.equals("java.exe")) {
                 javaLibDir = new File(javaExec).getParentFile().getParent() + File.separator + "lib";
-                fullLdLibraryPath = nativesPath + ":" + javaLibDir + ":" + systemLibs;
-                LogService.info("[GameLauncher] 📦 Java lib dir: " + javaLibDir);
                 
-                // ВОССТАНОВЛЕНИЕ: если критические библиотеки отсутствуют, пытаемся восстановить
-                LogService.info("[GameLauncher] 🔧 Проверка критических библиотек Java...");
-                if (!JavaService.ensureRequiredLibs(javaLibDir)) {
-                    LogService.info("[GameLauncher] ⚠ Некоторые библиотеки не удалось восстановить");
-                }
+                // Для Java 8 на Linux библиотеки могут быть в lib/amd64/ и lib/amd64/server/
+                // Также современные JRE (Temurin/Adoptium) имеют server/ в lib/server/
+                String javaAmd64Lib = new File(javaExec).getParentFile().getParent() + File.separator + "lib" + File.separator + "amd64";
+                String javaAmd64ServerLib = javaAmd64Lib + File.separator + "server";
+                String javaServerLib = new File(javaExec).getParentFile().getParent() + File.separator + "lib" + File.separator + "server";
+
+                // Собираем полный LD_LIBRARY_PATH с учетом Java 8 и Java 17 структур
+                fullLdLibraryPath = nativesPath + ":" + javaLibDir + ":" + javaAmd64Lib + ":" + javaAmd64ServerLib + ":" + javaServerLib + ":" + systemLibs;
+                LogService.info("[GameLauncher] 📦 Java lib dir: " + javaLibDir);
+                LogService.info("[GameLauncher] 📦 Java amd64 lib dir: " + javaAmd64Lib);
+                LogService.info("[GameLauncher] 📦 Java server lib dir: " + javaServerLib);
+                
+                // ЗАКОММЕНТИРОВАНО: Проверка ensureRequiredLibs дает ложные срабатывания
+                // Adoptium JRE структура отличается от Oracle, но Java все равно работает
+                // LogService.info("[GameLauncher] 🔧 Проверка критических библиотек Java...");
+                // if (!JavaService.ensureRequiredLibs(javaLibDir)) {
+                //     LogService.info("[GameLauncher] ⚠ Некоторые библиотеки не удалось восстановить");
+                // }
                 
                 // ДИАГНОСТИКА: проверяем наличие libji.so
                 File javaLibFile = new File(javaLibDir);

@@ -15,6 +15,7 @@ import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.NetworkService;
 import md.dankert.dankertcraft.utils.InstanceConfigHelper;
 import md.dankert.dankertcraft.utils.LanguageStrings;
+import md.dankert.dankertcraft.utils.IconProvider;
 import md.dankert.dankertcraft.mods.ModrinthService;
 import md.dankert.dankertcraft.mods.ModrinthService.ModInfo;
 import java.io.File;
@@ -106,14 +107,14 @@ public class ModWindow {
         layout.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
 
         // --- ЗАГОЛОВОК ---
-        Label title = new Label(t("mod.title"));
+        Label title = new Label(IconProvider.extractText(t("mod.title")));
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + ";");
 
         // --- ПОИСК ---
         HBox searchBox = new HBox(10);
         searchBox.setAlignment(Pos.CENTER_LEFT);
         
-        Label searchLabel = new Label(t("mod.search"));
+        Label searchLabel = new Label(IconProvider.extractText(t("mod.search")));
         searchLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 12px;");
         
         searchField.setPromptText("Введите название мода...");
@@ -141,7 +142,7 @@ public class ModWindow {
         downloadBox.setPadding(new Insets(10));
         downloadBox.setStyle("-fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5; -fx-background-color: " + Themes.Colors.BG_SECONDARY + ";");
         
-        Label urlLabel = new Label(t("mod.download.url"));
+        Label urlLabel = new Label(IconProvider.extractText(t("mod.download.url")));
         urlLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 12px;");
         
         TextField urlField = new TextField();
@@ -150,7 +151,10 @@ public class ModWindow {
         urlField.setStyle("-fx-padding: 8px; -fx-font-size: 12px; -fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5;");
         HBox.setHgrow(urlField, Priority.ALWAYS);
         
-        Button downloadBtn = new Button(t("mod.download"));
+        Button downloadBtn = new Button(IconProvider.extractText(t("mod.download")));
+        if (IconProvider.hasIconPrefix(t("mod.download"))) {
+            downloadBtn.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("mod.download")), 14));
+        }
         downloadBtn.setPrefWidth(100);
         downloadBtn.setPrefHeight(30);
         downloadBtn.setStyle("-fx-background-color: " + Themes.Colors.BUTTON_PRIMARY + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-font-size: 11px;");
@@ -162,15 +166,24 @@ public class ModWindow {
         HBox btnBox = new HBox(10);
         btnBox.setAlignment(Pos.CENTER_LEFT);
 
-        Button addBtn = new Button(t("button.add.mod"));
+        Button addBtn = new Button(IconProvider.extractText(t("button.add.mod")));
+        if (IconProvider.hasIconPrefix(t("button.add.mod"))) {
+            addBtn.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("button.add.mod")), 14));
+        }
         addBtn.setStyle("-fx-background-color: " + Themes.Colors.SUCCESS_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
         addBtn.setOnAction(e -> addMod());
 
-        Button deleteBtn = new Button(t("button.delete.mod"));
+        Button deleteBtn = new Button(IconProvider.extractText(t("button.delete.mod")));
+        if (IconProvider.hasIconPrefix(t("button.delete.mod"))) {
+            deleteBtn.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("button.delete.mod")), 14));
+        }
         deleteBtn.setStyle("-fx-background-color: " + Themes.Colors.ERROR_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
         deleteBtn.setOnAction(e -> deleteMod());
 
-        Button openFolderBtn = new Button(t("mod.open.folder"));
+        Button openFolderBtn = new Button(IconProvider.extractText(t("mod.open.folder")));
+        if (IconProvider.hasIconPrefix(t("mod.open.folder"))) {
+            openFolderBtn.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("mod.open.folder")), 14));
+        }
         openFolderBtn.setStyle("-fx-background-color: " + Themes.Colors.ACCENT_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15;");
         openFolderBtn.setOnAction(e -> openModsFolder());
 
@@ -196,7 +209,7 @@ public class ModWindow {
         layout.setPadding(new Insets(20));
         layout.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
 
-        Label title = new Label(t("mod.search.title"));
+        Label title = new Label(IconProvider.extractText(t("mod.search.title")));
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + ";");
 
         // --- ИНФОРМАЦИЯ О ВЕРСИИ ---
@@ -213,14 +226,17 @@ public class ModWindow {
         HBox searchBox = new HBox(10);
         searchBox.setAlignment(Pos.CENTER_LEFT);
         
-        Label searchLabel = new Label(t("mod.search"));
+        Label searchLabel = new Label(IconProvider.extractText(t("mod.search")));
         searchLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-size: 12px; -fx-font-weight: bold;");
         
         modrinthSearchField.setPromptText("Введите название мода (например: 'Sodium', 'JEI')...");
         modrinthSearchField.setPrefHeight(35);
         modrinthSearchField.setStyle("-fx-padding: 10px; -fx-font-size: 13px; -fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-width: 1; -fx-border-radius: 5;");
         
-        Button searchBtn = new Button(t("mod.search"));
+        Button searchBtn = new Button(IconProvider.extractText(t("mod.search")));
+        if (IconProvider.hasIconPrefix(t("mod.search"))) {
+            searchBtn.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("mod.search")), 14));
+        }
         searchBtn.setPrefWidth(110);
         searchBtn.setPrefHeight(35);
         searchBtn.setStyle("-fx-background-color: " + Themes.Colors.BUTTON_PRIMARY + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-font-weight: bold; -fx-font-size: 12px;");
@@ -242,13 +258,19 @@ public class ModWindow {
         HBox actionBox = new HBox(10);
         actionBox.setAlignment(Pos.CENTER_LEFT);
 
-        Button downloadBtn = new Button(t("mod.download"));
+        Button downloadBtn = new Button(IconProvider.extractText(t("mod.download")));
+        if (IconProvider.hasIconPrefix(t("mod.download"))) {
+            downloadBtn.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("mod.download")), 14));
+        }
         downloadBtn.setPrefWidth(130);
         downloadBtn.setPrefHeight(35);
         downloadBtn.setStyle("-fx-background-color: " + Themes.Colors.SUCCESS_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15; -fx-font-weight: bold;");
         downloadBtn.setOnAction(e -> downloadSelectedModrinthMod());
 
-        Button openBtn = new Button(t("mod.open.modrinth"));
+        Button openBtn = new Button(IconProvider.extractText(t("mod.open.modrinth")));
+        if (IconProvider.hasIconPrefix(t("mod.open.modrinth"))) {
+            openBtn.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("mod.open.modrinth")), 14));
+        }
         openBtn.setPrefWidth(160);
         openBtn.setPrefHeight(35);
         openBtn.setStyle("-fx-background-color: " + Themes.Colors.ACCENT_COLOR + "; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 5; -fx-padding: 8 15; -fx-font-weight: bold;");
@@ -257,7 +279,7 @@ public class ModWindow {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label helpLabel = new Label(t("mod.hint"));
+        Label helpLabel = new Label(IconProvider.extractText(t("mod.hint")));
         helpLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 11px; -fx-italic: true;");
 
         actionBox.getChildren().addAll(downloadBtn, openBtn, spacer, helpLabel);

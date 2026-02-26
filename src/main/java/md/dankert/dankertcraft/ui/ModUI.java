@@ -12,6 +12,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.ui.Themes;
 import md.dankert.dankertcraft.utils.LanguageStrings;
+import md.dankert.dankertcraft.utils.IconProvider;
 import md.dankert.dankertcraft.mods.ModrinthService;
 
 import java.io.File;
@@ -51,10 +52,10 @@ public class ModUI {
         topBar.setAlignment(Pos.CENTER_LEFT);
         topBar.setStyle("-fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5;");
 
-        Label versionLabel = new Label(t("mod.version.info") + (selectedInstance != null ? selectedInstance : t("label.version.not.selected")));
+        Label versionLabel = new Label(IconProvider.extractText(t("mod.version.info")) + (selectedInstance != null ? selectedInstance : IconProvider.extractText(t("label.version.not.selected"))));
         versionLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + ";");
 
-        Label loaderLabel = new Label(t("label.loader.fabric"));
+        Label loaderLabel = new Label(IconProvider.extractText(t("label.loader.fabric")));
         loaderLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + ";");
 
         topBar.getChildren().addAll(versionLabel, new Separator(javafx.geometry.Orientation.VERTICAL), loaderLabel);
@@ -80,10 +81,10 @@ public class ModUI {
         Label iconLabel = new Label("⚠️");
         iconLabel.setStyle("-fx-font-size: 50px;");
 
-        Label msg = new Label(t("label.version.info"));
+        Label msg = new Label(IconProvider.extractText(t("label.version.info")));
         msg.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
 
-        Label subMsg = new Label(t("label.version.desc"));
+        Label subMsg = new Label(IconProvider.extractText(t("label.version.desc")));
         subMsg.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
         warningBox.getChildren().addAll(iconLabel, msg, subMsg);
@@ -93,7 +94,10 @@ public class ModUI {
     private void showSearchView(VBox root) {
         TextField searchField = new TextField();
         searchField.setPromptText("Поиск модов на Modrinth (напр. Sodium, Iris)...");
-        Button searchButton = new Button(t("button.search"));
+        Button searchButton = new Button(IconProvider.extractText(t("button.search")));
+        if (IconProvider.hasIconPrefix(t("button.search"))) {
+            searchButton.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("button.search")), 14));
+        }
         searchButton.setDefaultButton(true);
 
         HBox searchBar = new HBox(10, searchField, searchButton);

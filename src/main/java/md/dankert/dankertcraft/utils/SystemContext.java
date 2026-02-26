@@ -30,7 +30,21 @@ public class SystemContext {
         }
     }
 
+    public enum Architecture {
+        X86_64("x86_64"),
+        X86("x86"),
+        ARM64("aarch64"),
+        ARM("arm");
+
+        public final String name;
+
+        Architecture(String name) {
+            this.name = name;
+        }
+    }
+
     private static final OS CURRENT_OS = detectOS();
+    private static final Architecture CURRENT_ARCH = detectArchitecture();
 
     private static OS detectOS() {
         String osName = System.getProperty("os.name").toLowerCase();
@@ -39,15 +53,36 @@ public class SystemContext {
         return OS.LINUX;
     }
 
+    private static Architecture detectArchitecture() {
+        String arch = System.getProperty("os.arch").toLowerCase();
+        if (arch.contains("x86_64") || arch.contains("amd64")) return Architecture.X86_64;
+        if (arch.contains("x86") || arch.contains("i386")) return Architecture.X86;
+        if (arch.contains("aarch64") || arch.contains("arm64")) return Architecture.ARM64;
+        if (arch.contains("arm")) return Architecture.ARM;
+        return Architecture.X86_64; // Default
+    }
+
     public static OS getCurrentOS() { return CURRENT_OS; }
+    public static Architecture getCurrentArchitecture() { return CURRENT_ARCH; }
 
     public static boolean isWindows() { return CURRENT_OS == OS.WINDOWS; }
     public static boolean isMac() { return CURRENT_OS == OS.MACOS; }
     public static boolean isLinux() { return CURRENT_OS == OS.LINUX; }
 
+    public static boolean isARM64() { return CURRENT_ARCH == Architecture.ARM64; }
+    public static boolean isX86_64() { return CURRENT_ARCH == Architecture.X86_64; }
+
+    /**
+     * Возвращает суффикс для исполняемых файлов (.exe для Windows, пусто для других ОС)
+     */
+    public static String getExecutableSuffix() {
+        return isWindows() ? ".exe" : "";
+    }
+
     public static String getJavaExecutableName() { return CURRENT_OS.javaExecutable; }
     public static String getJavaLibraryExtension() { return CURRENT_OS.libExtension; }
     public static String getArchitecture() { return System.getProperty("os.arch"); }
+    public static String getArchitectureName() { return CURRENT_ARCH.name; }
 
     public static String getJavaBinaryPath(String runtimeDir, String version) {
         File binDir = new File(runtimeDir, "bin");
@@ -60,7 +95,7 @@ public class SystemContext {
             case WINDOWS: return Arrays.asList("jli.dll", "msvcrt.dll", "msvcp140.dll");
             case MACOS: return Arrays.asList("libjli.dylib", "libfontmanager.dylib");
             case LINUX:
-            default: return Arrays.asList("libjli.so", "libfontmanager.so");
+            default: return Arrays.asList("libjli.so", "libfontmanager.so", "libjava.so", "libjvm.so");
         }
     }
 
@@ -73,15 +108,69 @@ public class SystemContext {
     // --- Working directory and basic OS helpers (moved from OSHelper/OSSettings) ---
     public static String getWorkingDirectory() {
         String userHome = System.getProperty("user.home");
-        String folderName = ".dankertcraft";
+        String folderName = "dankertcraft";
 
         if (isWindows()) {
             String appData = System.getenv("APPDATA");
             return (appData != null ? appData : userHome) + File.separator + folderName;
         } else if (isMac()) {
-            return userHome + "/Library/Application Support/" + folderName;
+            return userHome + File.separator + "Library" + File.separator + "Application Support" + File.separator + folderName;
         } else {
-            return userHome + File.separator + folderName;
+            // Linux: по умолчанию используем скрытую папку в домашнем каталоге для простоты (~/.dankertcraft)
+            // Если явно задана переменная окружения DANKERTCRAFT_HOME — используем её (позволяет гибкую настройку)
+            String customHome = System.getenv("DANKERTCRAFT_HOME");
+            String newPath = (customHome != null && !customHome.isEmpty()) ? customHome + File.separator + folderName : userHome + File.separator + ".dankertcraft";
+
+            // Попробуем автоматически мигрировать данные из старой локации (~/.local/share/dankertcraft или XDG_DATA_HOME),
+            // если там что-то есть и новой директории ещё нет.
+            try {
+                String xdgDataHome = System.getenv("XDG_DATA_HOME");
+                String legacy1 = (xdgDataHome != null && !xdgDataHome.isEmpty()) ? xdgDataHome + File.separator + folderName : null;
+                String legacy2 = userHome + File.separator + ".local" + File.separator + "share" + File.separator + folderName;
+
+                File newDir = new File(newPath);
+                if (!newDir.exists()) {
+                    if (legacy1 != null) {
+                        File l1 = new File(legacy1);
+                        if (l1.exists()) {
+                            Files.move(l1.toPath(), newDir.toPath());
+                            return newDir.getAbsolutePath();
+                        }
+                    }
+                    File l2 = new File(legacy2);
+                    if (l2.exists()) {
+                        Files.move(l2.toPath(), newDir.toPath());
+                        return newDir.getAbsolutePath();
+                    }
+                }
+            } catch (Exception e) {
+                LogService.debug("[SystemContext] Не удалось мигрировать старые данные: " + e.getMessage());
+            }
+
+            return newPath;
+        }
+    }
+
+    /**
+     * Получает директорию конфигурации согласно стандартам ОС
+     * Windows: %APPDATA%/dankertcraft
+     * macOS: ~/Library/Preferences/dankertcraft
+     * Linux: $XDG_CONFIG_HOME/dankertcraft или ~/.config/dankertcraft
+     */
+    public static String getConfigDirectory() {
+        String userHome = System.getProperty("user.home");
+        String folderName = "dankertcraft";
+
+        if (isWindows()) {
+            String appData = System.getenv("APPDATA");
+            return (appData != null ? appData : userHome) + File.separator + folderName + File.separator + "config";
+        } else if (isMac()) {
+            return userHome + File.separator + "Library" + File.separator + "Preferences" + File.separator + folderName;
+        } else {
+            // Linux: по умолчанию используем ~/.dankertcraft для конфигурации (консистентно с рабочим каталогом)
+            String customHome = System.getenv("DANKERTCRAFT_HOME");
+            if (customHome != null && !customHome.isEmpty()) return customHome + File.separator + folderName + File.separator + "config";
+            return userHome + File.separator + ".dankertcraft" + File.separator + "config";
         }
     }
 
@@ -215,10 +304,12 @@ public class SystemContext {
     public static String getLibraryPathSeparator() { return File.pathSeparator; }
 
     public static String getPlatformInfo() {
-        return String.format("OS=%s, Arch=%s, Version=%s, JavaHome=%s",
+        return String.format("OS=%s, Arch=%s, ArchType=%s, Version=%s, JavaHome=%s, WorkDir=%s",
                 CURRENT_OS.name,
                 getArchitecture(),
+                getArchitectureName(),
                 System.getProperty("os.version"),
-                System.getProperty("java.home"));
+                System.getProperty("java.home"),
+                getWorkingDirectory());
     }
 }

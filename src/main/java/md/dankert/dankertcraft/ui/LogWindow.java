@@ -10,6 +10,7 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
+import md.dankert.dankertcraft.utils.IconProvider;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -20,7 +21,7 @@ import java.util.List;
 
 public class LogWindow {
     private final TextArea logArea = new TextArea();
-    private final Label statusLabel = new Label(t("label.initializing"));
+    private final Label statusLabel = new Label(IconProvider.extractText(t("label.initializing")));
     
     private String t(String key) {
         return LanguageStrings.get(key);
@@ -55,20 +56,29 @@ public class LogWindow {
         // ===== ЛейблЫ с информацией =====
         statusLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
         
-        Label descriptionLabel = new Label(t("label.logs.hint"));
+        Label descriptionLabel = new Label(IconProvider.extractText(t("label.logs.hint")));
         descriptionLabel.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 11px;");
         descriptionLabel.setWrapText(true);
 
-        // ===== Кнопки управления =====
-        Button copyButton = new Button(t("button.copy.logs"));
+        // Кнопки управления
+        Button copyButton = new Button(IconProvider.extractText(t("button.copy.logs")));
+        if (IconProvider.hasIconPrefix(t("button.copy.logs"))) {
+            copyButton.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("button.copy.logs")), 14));
+        }
         copyButton.setStyle("-fx-font-size: 11px; -fx-padding: 8px 15px;");
         copyButton.setOnAction(e -> copyLogsToClipboard());
 
-        Button openCrashReport = new Button(t("button.crash.open"));
+        Button openCrashReport = new Button(IconProvider.extractText(t("button.crash.open")));
+        if (IconProvider.hasIconPrefix(t("button.crash.open"))) {
+            openCrashReport.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("button.crash.open")), 14));
+        }
         openCrashReport.setStyle("-fx-font-size: 11px; -fx-padding: 8px 15px;");
         openCrashReport.setOnAction(e -> openLatestCrashReport());
 
-        Button clearButton = new Button(t("button.clear.logs"));
+        Button clearButton = new Button(IconProvider.extractText(t("button.clear.logs")));
+        if (IconProvider.hasIconPrefix(t("button.clear.logs"))) {
+            clearButton.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("button.clear.logs")), 14));
+        }
         clearButton.setStyle("-fx-font-size: 11px; -fx-padding: 8px 15px;");
         clearButton.setOnAction(e -> logArea.clear());
 

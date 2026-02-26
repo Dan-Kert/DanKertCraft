@@ -286,11 +286,35 @@ public class InstallWindow {
                 @Override protected Void call() throws Exception {
                     md.dankert.dankertcraft.core.MinecraftInstaller.InstallType type = currentCategory.equals("Fabric") ? md.dankert.dankertcraft.core.MinecraftInstaller.InstallType.FABRIC : md.dankert.dankertcraft.core.MinecraftInstaller.InstallType.VANILLA;
 
+                    // Параллельно запускаем скачивание Java, чтобы оно шло во время загрузки ассетов
+                    Thread javaThread = new Thread(() -> {
+                        try {
+                            installer.setupJavaRuntime(ver, this);
+                        } catch (Exception je) {
+                            LogService.warn("[InstallWindow] Ошибка при фоновом скачивании Java: " + je.getMessage());
+                        }
+                    }, "JavaDownload-Thread");
+                    javaThread.setDaemon(true);
+                    javaThread.start();
+
                     // Установка версии (скачивание JSON/JAR/библиотек/ассетов + Fabric если нужен)
                     VersionData data = installer.install(ver, type, this);
 
-                    // Установка/получение пути к Java
-                    String javaPath = installer.setupJavaRuntime(ver, this);
+                    // Ждём максимум 60s, чтобы фоновая загрузка Java успела выполниться; если нет — выполнем синхронно
+                    try {
+                        javaThread.join(60000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+
+                    String javaPath;
+                    if (javaThread.isAlive()) {
+                        // принудительно дожидаемся/выполняем установку
+                        javaPath = installer.setupJavaRuntime(ver, this);
+                    } else {
+                        // В идеале фоновая загрузка уже установила runtime — всё равно запросим путь
+                        javaPath = installer.setupJavaRuntime(ver, this);
+                    }
 
                     // Нормализуем пути для JSON: используем forward slashes для portability, но на Windows оставляем как есть
                     String normalizedJavaPath = javaPath;
@@ -309,6 +333,30 @@ public class InstallWindow {
             };
             
             task.setInstaller(installer); // Привязываем installer для поддержки отмены
+            // При отмене установки — удаляем временную сборку и скачанные ассеты + runtime
+            task.setOnCancelled(ev -> {
+                new Thread(() -> {
+                    try {
+                        // Удаляем instanceDir
+                        if (instanceDir.exists()) {
+                            md.dankert.dankertcraft.utils.SystemContext.deleteDirectory(instanceDir);
+                        }
+                        // Удаляем скачанные версии/ассеты
+                        File versionsDir = new File(workDir, "versions" + File.separator + ver);
+                        if (versionsDir.exists()) md.dankert.dankertcraft.utils.SystemContext.deleteDirectory(versionsDir);
+                        // Удаляем runtime/java
+                        File runtimeDir = new File(workDir, "runtime");
+                        if (runtimeDir.exists()) {
+                            for (File f : runtimeDir.listFiles((dir, fname) -> fname.startsWith("java"))) {
+                                md.dankert.dankertcraft.utils.SystemContext.deleteDirectory(f);
+                            }
+                        }
+                        LogService.info("[InstallWindow] Удалены частично скачанные файлы после отмены");
+                    } catch (Exception ex) {
+                        LogService.error("[InstallWindow] Ошибка при очистке после отмены: " + ex.getMessage());
+                    }
+                }).start();
+            });
             launcherUI.getDownloadStatusBar().start(LanguageStrings.get("install") + ": " + name, task);
             
             Thread downloadThread = new Thread(task, "InstallThread-" + name);

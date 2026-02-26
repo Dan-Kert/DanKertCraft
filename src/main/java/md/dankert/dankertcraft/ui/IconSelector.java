@@ -13,6 +13,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;
+import md.dankert.dankertcraft.utils.IconProvider;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -42,7 +43,10 @@ public class IconSelector extends Stage {
         root.setStyle("-fx-background-color: #1e1e1e;");
 
         // Кнопка добавления своего файла
-        Button uploadBtn = new Button(t("button.add.icon"));
+        Button uploadBtn = new Button(IconProvider.extractText(t("button.add.icon")));
+        if (IconProvider.hasIconPrefix(t("button.add.icon"))) {
+            uploadBtn.setGraphic(IconProvider.getIconByName(IconProvider.extractIconName(t("button.add.icon")), 14));
+        }
         uploadBtn.setMaxWidth(Double.MAX_VALUE);
         uploadBtn.setPrefHeight(40);
         uploadBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-background-radius: 5;");

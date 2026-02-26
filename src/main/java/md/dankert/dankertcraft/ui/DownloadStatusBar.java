@@ -26,6 +26,7 @@ public class DownloadStatusBar extends HBox {
     private final Label stageLabel = new Label();      // "Загрузка библиотек"
     private final Label filesLabel = new Label();      // "150 / 450"
     private final Label speedLabel = new Label();      // "12.4 MB/s"
+    private final Label etaLabel = new Label();        // "ETA: 00:01"
     private final Label percentLabel = new Label("0%");
 
     private final Button cancelBtn = new Button("✕ Отмена");
@@ -52,6 +53,9 @@ public class DownloadStatusBar extends HBox {
         filesLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 11px;");
         speedLabel.setStyle("-fx-text-fill: #27ae60; -fx-font-size: 11px; -fx-font-weight: bold;");
         percentLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-min-width: 45px;");
+        etaLabel.setStyle("-fx-text-fill: #999; -fx-font-size: 11px;");
+        etaLabel.setVisible(false);
+        etaLabel.setManaged(false);
 
         String btnStyle = "-fx-background-color: #2a5f8d; -fx-text-fill: white; -fx-cursor: hand; -fx-background-radius: 4; -fx-padding: 5 10 5 10; -fx-font-size: 11px;";
         logBtn.setStyle(btnStyle);
@@ -61,7 +65,7 @@ public class DownloadStatusBar extends HBox {
         VBox mainInfo = new VBox(2, titleLabel, stageLabel);
         mainInfo.setAlignment(Pos.CENTER_LEFT);
 
-        VBox sideInfo = new VBox(2, speedLabel, filesLabel);
+        VBox sideInfo = new VBox(2, speedLabel, filesLabel, etaLabel);
         sideInfo.setAlignment(Pos.CENTER_RIGHT);
         HBox.setHgrow(mainInfo, Priority.ALWAYS);
 
@@ -148,7 +152,10 @@ public class DownloadStatusBar extends HBox {
             String[] parts = val.split("\\|");
             Platform.runLater(() -> {
                 if (parts.length >= 1) stageLabel.setText(parts[0]);
-                if (parts.length >= 2) filesLabel.setText(parts[1]);
+                if (parts.length >= 2) {
+                    String raw = parts[1].trim();
+                    filesLabel.setText(formatFilesLabel(raw, task));
+                }
                 if (parts.length >= 3) speedLabel.setText(parts[2]);
             });
         });
@@ -220,13 +227,13 @@ public class DownloadStatusBar extends HBox {
             try {
                 File runtimeDir = new File(workDir, "runtime");
                 if (runtimeDir.exists()) {
-                    for (File f : runtimeDir.listFiles((dir, name) -> name.startsWith("java"))) {
+                    for (File f : runtimeDir.listFiles((dir, fname) -> fname.startsWith("java"))) {
                         deleteDirectory(f);
                     }
                 }
                 // Удаляем временные tar.gz файлы
                 File tempDir = new File(workDir);
-                for (File f : tempDir.listFiles((dir, name) -> name.startsWith("java_temp") && name.endsWith(".tar.gz"))) {
+                for (File f : tempDir.listFiles((dir, fname) -> fname.startsWith("java_temp") && fname.endsWith(".tar.gz"))) {
                     f.delete();
                 }
                 LogService.info("[StatusBar] Временные файлы удалены");
@@ -246,5 +253,77 @@ public class DownloadStatusBar extends HBox {
             }
         }
         dir.delete();
+    }
+
+    // Форматируем метку файлов/байт и ETA, если возможно
+    private String formatFilesLabel(String raw, DownloadTask task) {
+        try {
+            // raw может быть либо "123 / 456" (файлы) либо "12345 / 67890" (байты)
+            String[] parts = raw.split("/");
+            if (parts.length >= 2) {
+                String left = parts[0].replaceAll("[^0-9]", "").trim();
+                String right = parts[1].replaceAll("[^0-9]", "").trim();
+                if (!left.isEmpty() && !right.isEmpty()) {
+                    long a = Long.parseLong(left);
+                    long b = Long.parseLong(right);
+                    // Если числа большие (>1000) трактуем как байты
+                    if (b > 1000) {
+                        String humanLeft = humanReadableBytes(a);
+                        String humanRight = humanReadableBytes(b);
+                        // Попробуем вычислить ETA по скорости из speedLabel (формат "X.XX MB/s")
+                        double speed = parseSpeedMbPerSec(speedLabel.getText());
+                        if (speed > 0 && a < b) {
+                            double remainMb = (b - a) / (1024.0 * 1024.0);
+                            long seconds = (long) Math.max(0, Math.round(remainMb / speed));
+                            etaLabel.setText("ETA: " + formatSeconds(seconds));
+                            etaLabel.setVisible(true);
+                            etaLabel.setManaged(true);
+                        } else {
+                            etaLabel.setText("");
+                            etaLabel.setVisible(false);
+                            etaLabel.setManaged(false);
+                        }
+                        return humanLeft + " / " + humanRight;
+                    } else {
+                        // Файловый формат
+                        etaLabel.setVisible(false);
+                        etaLabel.setManaged(false);
+                        return a + " / " + b;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // ignore parsing errors
+        }
+        etaLabel.setVisible(false);
+        etaLabel.setManaged(false);
+        return raw;
+    }
+
+    private static String humanReadableBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String pre = "KMGTPE".charAt(exp-1) + "i";
+        double val = bytes / Math.pow(1024, exp);
+        return String.format("%.2f %sB", val, pre);
+    }
+
+    private static double parseSpeedMbPerSec(String text) {
+        try {
+            if (text == null) return 0;
+            text = text.trim();
+            if (text.endsWith("MB/s")) {
+                return Double.parseDouble(text.replace("MB/s", "").trim());
+            }
+        } catch (Exception ignored) {}
+        return 0;
+    }
+
+    private static String formatSeconds(long s) {
+        long hours = s / 3600;
+        long minutes = (s % 3600) / 60;
+        long seconds = s % 60;
+        if (hours > 0) return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+        return String.format("%02d:%02d", minutes, seconds);
     }
 }

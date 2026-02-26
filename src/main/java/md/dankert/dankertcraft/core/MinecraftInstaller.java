@@ -39,7 +39,7 @@ public class MinecraftInstaller {
 
     // Manifest URLs
     private static final String MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
-    private static final String LIBRARIES_URL = "https://libraries.minecraft.net/";
+    private static final String LIBRARIES_URL = "https://files.prismlauncher.org/maven/";
     private static final String ASSETS_URL = "https://resources.download.minecraft.net/";
 
     private MinecraftInstaller(String workDir) {
@@ -262,21 +262,8 @@ public class MinecraftInstaller {
                 checkPause();
                 
                 try {
-                    if (lib.downloads != null && lib.downloads.artifact != null) {
-                        downloadLibFile(lib.downloads.artifact);
-                    } else if (lib.name != null) {
-                        downloadLibFile(lib.name, lib.url);
-                    }
-
-                    if (lib.natives != null && lib.natives.containsKey(osFamily)) {
-                        String classifier = lib.natives.get(osFamily);
-                        if (lib.downloads != null && lib.downloads.classifiers != null) {
-                            VersionData.Artifact nativeArt = lib.downloads.classifiers.get(classifier);
-                            if (nativeArt != null) {
-                                downloadLibFile(nativeArt);
-                            }
-                        }
-                    }
+                    // Загружаем библиотеку полностью через новый метод
+                    downloadLibrary(lib);
 
                     synchronized (currentFile) {
                         currentFile[0]++;
@@ -291,28 +278,59 @@ public class MinecraftInstaller {
         waitForFinish(executor, LanguageStrings.get("progress.waiting.libs"));
     }
 
-    private void downloadLibFile(VersionData.Artifact artifact) throws IOException {
-        String url = artifact.url;
-        String path = artifact.path;
-        String sha1 = artifact.sha1;
-
-        File file = new File(workDir + File.separator + "libraries" + File.separator + path);
-        if (needsUpdate(file, sha1)) {
-            File parentDir = file.getParentFile();
-            if (parentDir != null) parentDir.mkdirs();
-            NetworkService.downloadFile(url, file.getAbsolutePath());
+    private void downloadLibrary(VersionData.Library lib) throws IOException {
+        // Загружаем основной артефакт
+        if (lib.downloads != null && lib.downloads.artifact != null) {
+            downloadArtifact(lib.downloads.artifact);
+        } else if (lib.name != null && lib.url != null) {
+            // Fallback для старых версий: используем Maven имя
+            String path = convertMavenToPath(lib.name);
+            downloadArtifactByPath(path, lib.url);
+        }
+        
+        // Загружаем нативные библиотеки с правильной обработкой платформы
+        if (lib.natives != null && lib.natives.containsKey(osFamily)) {
+            String classifier = lib.natives.get(osFamily);
+            if (lib.downloads != null && lib.downloads.classifiers != null) {
+                VersionData.Artifact nativeArt = lib.downloads.classifiers.get(classifier);
+                if (nativeArt != null) {
+                    downloadArtifact(nativeArt);
+                }
+            } else if (lib.name != null) {
+                // Старые версии: строим путь с классификатором вручную
+                String mavenName = lib.name + ":" + classifier;
+                String path = convertMavenToPath(mavenName);
+                try {
+                    downloadArtifactByPath(path, LIBRARIES_URL);
+                } catch (IOException e) {
+                    LogService.warn("[MinecraftInstaller] Не удалось загрузить native lib " + path + ": " + e.getMessage());
+                }
+            }
         }
     }
-
-    private void downloadLibFile(String name, String baseUrl) throws IOException {
-        String path = convertMavenToPath(name);
-        String url = (baseUrl != null ? baseUrl : LIBRARIES_URL) + path;
+    
+    private void downloadArtifact(VersionData.Artifact artifact) throws IOException {
+        String path = artifact.path;
+        String sha1 = artifact.sha1;
         File file = new File(workDir + File.separator + "libraries" + File.separator + path);
         
-        if (!file.exists()) {
-            File parentDir = file.getParentFile();
-            if (parentDir != null) parentDir.mkdirs();
-            NetworkService.downloadFile(url, file.getAbsolutePath());
+        if (needsUpdate(file, sha1)) {
+            file.getParentFile().mkdirs();
+            downloadArtifactByPath(path, artifact.url);
+        }
+    }
+    
+    private void downloadArtifactByPath(String path, String baseUrl) throws IOException {
+        File file = new File(workDir + File.separator + "libraries" + File.separator + path);
+        
+        // Сначала пробуем Prism Launcher зеркало (для старых версий)
+        String mirrorUrl = LIBRARIES_URL + path;
+        try {
+            LogService.info("[NetworkService] Загрузка: " + mirrorUrl);
+            NetworkService.downloadFile(mirrorUrl, file.getAbsolutePath());
+        } catch (IOException e) {
+            LogService.warn("[NetworkService] Зеркало недоступно, пробуем: " + baseUrl);
+            NetworkService.downloadFile(baseUrl, file.getAbsolutePath());
         }
     }
 
@@ -405,15 +423,23 @@ public class MinecraftInstaller {
     }
 
     public String setupJavaRuntime(String mcVersion, String javaVersion, ProgressListener listener) {
-        if (javaVersion == null || javaVersion.equals("Auto")) {
+        if (javaVersion == null || javaVersion.isEmpty() || javaVersion.equalsIgnoreCase("Auto")) {
             return setupJavaRuntime(mcVersion, listener);
         }
-        
+
         try {
-            int version = Integer.parseInt(javaVersion);
+            String digits = javaVersion.replaceAll("[^0-9]", "");
+            if (digits.isEmpty()) {
+                return setupJavaRuntime(mcVersion, listener);
+            }
+            int version = Integer.parseInt(digits);
             LogService.info("[MinecraftInstaller] 🔍 Установка явно указанной Java " + version);
             JavaService javaService = new JavaService(workDir);
             return javaService.installJavaRuntime(version);
+        } catch (NumberFormatException nfe) {
+            LogService.error("[MinecraftInstaller] ❌ Неверный формат javaVersion: '" + javaVersion + "'", nfe);
+            LogService.warn("[MinecraftInstaller] ⚠️  Пытаемся использовать системную Java...");
+            return "java";
         } catch (Exception e) {
             LogService.error("[MinecraftInstaller] ❌ Ошибка при установке Java: " + e.getMessage(), e);
             LogService.warn("[MinecraftInstaller] ⚠️  Пытаемся использовать системную Java...");

@@ -68,29 +68,46 @@ public class JavaService {
 
     public String installJavaRuntime(int version) throws IOException {
         File targetDir = new File(workDir, "runtime/java" + version);
+        File javaBin = new File(targetDir, "bin/" + SystemContext.getJavaExecutableName());
+        
+        // Проверяем, существует ли уже установленная Java
+        if (javaBin.exists() && javaBin.canExecute()) {
+            LogService.info("[JavaService] Java " + version + " уже установлена в " + javaBin.getAbsolutePath());
+            return javaBin.getAbsolutePath();
+        }
+        
+        // Если нет, устанавливаем её
+        LogService.info("[JavaService] Устанавливаем Java " + version + "...");
         installJava(version, targetDir, null);
-        return new File(targetDir, "bin/" + SystemContext.getJavaExecutableName()).getAbsolutePath();
+        return javaBin.getAbsolutePath();
     }
 
     private void installJava(int version, File targetDir, ProgressListener listener) throws IOException {
         targetDir.mkdirs();
         String url = constructJavaDownloadUrl(version);
-        String tmp = new File(targetDir.getParentFile(), "java" + version + ".tmp").getAbsolutePath();
+        File tmpFile = new File(targetDir.getParentFile(), "java" + version + ".tar.gz");
 
         LogService.info("[JavaService] Скачивание Java " + version + " из " + url);
-        NetworkService.downloadFile(url, tmp, (downloaded, total) -> {
+        NetworkService.downloadFile(url, tmpFile.getAbsolutePath(), (downloaded, total) -> {
             if (listener != null && total > 0) {
                 int pct = (int) ((downloaded * 100) / total);
                 listener.onProgress(LanguageStrings.get("progress.java.download") + " " + version + "... " + pct + "%", pct, 100, downloaded);
             }
         });
 
-        // Попробуем распаковать как ZIP (Windows) или tar.gz (Unix) — упрощённо: если ZIP — распаковать через ZipInputStream
-        if (tmp.endsWith(".zip")) {
-            try (ZipInputStream zis = new ZipInputStream(new FileInputStream(tmp))) {
+        // Определяем формат архива по расширению URL или имени файла
+        String urlLower = url.toLowerCase();
+        boolean isZip = urlLower.endsWith(".zip") || tmpFile.getName().endsWith(".zip");
+        
+        if (isZip && SystemContext.isWindows()) {
+            // Windows: распаковываем ZIP
+            LogService.info("[JavaService] Распаковка ZIP архива...");
+            try (ZipInputStream zis = new ZipInputStream(new FileInputStream(tmpFile))) {
                 ZipEntry entry;
                 byte[] buffer = new byte[8192];
+                int entryCount = 0;
                 while ((entry = zis.getNextEntry()) != null) {
+                    entryCount++;
                     File outFile = new File(targetDir, entry.getName());
                     if (entry.isDirectory()) {
                         outFile.mkdirs();
@@ -103,34 +120,92 @@ public class JavaService {
                             }
                         }
                     }
+                    if (entryCount % 100 == 0) {
+                        LogService.debug("[JavaService] Распаковано " + entryCount + " файлов...");
+                    }
                 }
+                LogService.info("[JavaService] ZIP архива распакован успешно (" + entryCount + " файлов)");
+            } catch (Exception e) {
+                LogService.error("[JavaService] Ошибка при распаковке ZIP: " + e.getMessage());
+                throw new IOException("Failed to extract ZIP", e);
             }
         } else {
-            // Попытка: используем tar (предполагаем, что tar доступен в системе)
+            // Linux/macOS: используем tar
+            LogService.info("[JavaService] Распаковка tar.gz архива через tar...");
             try {
-                ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tmp, "-C", targetDir.getAbsolutePath(), "--strip-components=1");
-                pb.redirectErrorStream(true);
+                ProcessBuilder pb = new ProcessBuilder("tar", "-xzf", tmpFile.getAbsolutePath(), "-C", targetDir.getAbsolutePath(), "--strip-components=1");
+                pb.inheritIO();
                 Process p = pb.start();
-                p.waitFor();
-            } catch (Exception ex) {
-                LogService.warn("[JavaService] Не удалось распаковать tar.gz — оставляем временный файл для ручной обработки");
+                int exitCode = p.waitFor();
+                
+                if (exitCode != 0) {
+                    String errMsg = "tar вернул код ошибки: " + exitCode;
+                    LogService.error("[JavaService] " + errMsg);
+                    throw new IOException(errMsg);
+                }
+                LogService.info("[JavaService] tar.gz архив распакован успешно");
+            } catch (Exception e) {
+                LogService.error("[JavaService] Ошибка распаковки tar.gz: " + e.getMessage());
+                throw new IOException("Failed to extract tar.gz", e);
             }
         }
 
-        // Попытка установить права
-        try { SystemContext.makeExecutable(new File(targetDir, "bin/" + SystemContext.getJavaExecutableName())); } catch (Exception ignored) {}
+        // Устанавливаем права на выполнение для Java (важно для Linux/macOS)
+        try {
+            File binDir = new File(targetDir, "bin");
+            if (binDir.exists()) {
+                File[] binFiles = binDir.listFiles();
+                if (binFiles != null) {
+                    for (File BFile : binFiles) {
+                        SystemContext.makeExecutable(BFile);
+                    }
+                    LogService.info("[JavaService] Права на выполнение установлены для " + binFiles.length + " файлов в bin/");
+                }
+            }
+        } catch (Exception e) {
+            LogService.warn("[JavaService] Ошибка установки прав: " + e.getMessage());
+        }
 
-        new File(tmp).delete();
-        LogService.info("[JavaService] Установка Java " + version + " завершена (проверяйте вручную в случае ошибок)");
+        // Удаляем временный файл
+        if (!tmpFile.delete()) {
+            LogService.warn("[JavaService] Не удалось удалить временный файл: " + tmpFile.getAbsolutePath());
+        }
+
+        LogService.info("[JavaService] ✓ Установка Java " + version + " завершена успешно");
     }
 
     private String constructJavaDownloadUrl(int version) {
-        // Упрощённая реализация: примеры для Temurin
+        String osName = SystemContext.getCurrentOS().name;
         String arch = SystemContext.getArchitecture();
-        if (version == 21) return String.format("https://github.com/adoptium/temurin21-binaries/releases/latest/download/OpenJDK21U-jre_%s_%s_hotspot.zip", arch, SystemContext.getCurrentOS().name);
-        if (version == 17) return String.format("https://github.com/adoptium/temurin17-binaries/releases/latest/download/OpenJDK17U-jre_%s_%s_hotspot.zip", arch, SystemContext.getCurrentOS().name);
-        if (version == 11) return String.format("https://github.com/adoptium/temurin11-binaries/releases/latest/download/OpenJDK11U-jre_%s_%s_hotspot.zip", arch, SystemContext.getCurrentOS().name);
-        return String.format("https://github.com/adoptium/temurin8-binaries/releases/latest/download/OpenJDK8U-jre_%s_%s_hotspot.zip", arch, SystemContext.getCurrentOS().name);
+        // Java 8: используем заранее выбранные релизы (Adoptium не даёт стабильного latest для 8)
+        if (version == 8) {
+            if (SystemContext.isLinux()) {
+                String adoptArch = arch.equals("amd64") ? "x64" : arch;
+                return "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u402-b06/OpenJDK8U-jre_" + adoptArch + "_linux_hotspot_8u402b06.tar.gz";
+            } else if (SystemContext.isWindows()) {
+                String adoptArch = arch.equals("amd64") ? "x64" : arch;
+                return "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u402-b06/OpenJDK8U-jre_" + adoptArch + "_windows_hotspot_8u402b06.zip";
+            } else { // mac
+                String adoptArch = arch.equals("aarch64") ? "aarch64" : "x64";
+                return "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u402-b06/OpenJDK8U-jre_" + adoptArch + "_mac_hotspot_8u402b06.tar.gz";
+            }
+        }
+
+        // Для Java 11+ используем стабильный Adoptium API endpoint, который возвращает актуальные бинарники
+        // Формат: https://api.adoptium.net/v3/binary/latest/{version}/ga/{os}/{arch}/jre/hotspot/normal/eclipse
+        String apiOs = "linux";
+        if (SystemContext.isWindows()) apiOs = "windows";
+        else if (SystemContext.isMac()) apiOs = "mac";
+
+        String apiArch = arch;
+        if (arch.equals("amd64")) apiArch = "x64";
+
+        try {
+            return String.format("https://api.adoptium.net/v3/binary/latest/%d/ga/%s/%s/jre/hotspot/normal/eclipse", version, apiOs, apiArch);
+        } catch (Exception e) {
+            // На случай непредвиденной ошибки формируем fallback на GitHub releases
+            return String.format("https://github.com/adoptium/temurin%d-binaries/releases/latest/download/OpenJDK%dU-jre_%s_%s_hotspot.zip", version, version, arch, osName);
+        }
     }
 
     /**
@@ -160,127 +235,85 @@ public class JavaService {
 
     private static boolean ensureLib(String javaLibDir, String libName) {
         File libDir = new File(javaLibDir);
+        
+        // Первый вариант: ищем в стандартном месте (Java 17)
         File lib = new File(libDir, libName);
-
         if (lib.exists()) {
-            LogService.info("[JavaService] ✓ " + libName + " уже присутствует");
+            LogService.info("[JavaService] ✓ " + libName + " найден в lib/");
             return true;
         }
 
-        LogService.info("[JavaService] ⚠ " + libName + " отсутствует, восстанавливаем...");
+        // Второй вариант: ищем в подпапках для Java 8 (lib/amd64/, lib/amd64/server/, и т.д.)
+        String[] possiblePaths = {
+            "lib" + File.separator + libName,
+            "lib" + File.separator + "amd64" + File.separator + libName,
+            "lib" + File.separator + "amd64" + File.separator + "server" + File.separator + libName,
+            "lib" + File.separator + "server" + File.separator + libName,
+            "jre" + File.separator + "lib" + File.separator + "amd64" + File.separator + libName,
+            "jre" + File.separator + "lib" + File.separator + "amd64" + File.separator + "server" + File.separator + libName,
+        };
 
-        File serverLib = new File(javaLibDir + File.separator + "server");
-        if (serverLib.exists()) {
-            File serverLibFile = new File(serverLib, libName);
-            if (serverLibFile.exists()) {
-                try {
-                    LogService.info("[JavaService] 📚 Найдена в server/, копируем...");
-                    Files.copy(serverLibFile.toPath(), lib.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    LogService.info("[JavaService] ✓ " + libName + " восстановлена");
-                    return true;
-                } catch (IOException e) {
-                    LogService.error("[JavaService] ✗ Ошибка копирования: " + e.getMessage());
-                }
-            }
-        }
-
-        String systemJavaHome = System.getProperty("java.home");
-        File systemLib = new File(systemJavaHome, "lib/" + libName);
-        if (systemLib.exists()) {
-            try {
-                LogService.info("[JavaService] 📚 Копируем из системного Java...");
-                Files.copy(systemLib.toPath(), lib.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                LogService.info("[JavaService] ✓ " + libName + " восстановлена");
+        for (String path : possiblePaths) {
+            File candidate = new File(javaLibDir, path);
+            if (candidate.exists()) {
+                LogService.info("[JavaService] ✓ " + libName + " найден в: " + path);
                 return true;
-            } catch (IOException e) {
-                LogService.error("[JavaService] ✗ Ошибка копирования: " + e.getMessage());
             }
         }
 
-        File systemServerLib = new File(systemJavaHome, "lib/server/" + libName);
-        if (systemServerLib.exists()) {
-            try {
-                LogService.info("[JavaService] 📚 Копируем из системного Java server/...");
-                Files.copy(systemServerLib.toPath(), lib.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                LogService.info("[JavaService] ✓ " + libName + " восстановлена");
-                return true;
-            } catch (IOException e) {
-                LogService.error("[JavaService] ✗ Ошибка копирования: " + e.getMessage());
-            }
+        // Библиотека не найдена ни в одном из ожидаемых мест
+        LogService.error("[JavaService] ✗ КРИТИЧЕСКАЯ ОШИБКА: " + libName + " НЕ НАЙДЕН в скачанной JRE!");
+        LogService.error("[JavaService]    Базовая папка: " + libDir.getAbsolutePath());
+        LogService.error("[JavaService]    Проверены пути:");
+        for (String path : possiblePaths) {
+            LogService.error("[JavaService]      - " + path);
         }
-
-        String[] commonLibPaths = getCommonLibraryPaths(libName);
-        for (String libPath : commonLibPaths) {
-            File commonLib = new File(libPath);
-            if (commonLib.exists()) {
-                try {
-                    LogService.info("[JavaService] 📚 Копируем из " + libPath + "...");
-                    Files.copy(commonLib.toPath(), lib.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    LogService.info("[JavaService] ✓ " + libName + " восстановлена");
-                    return true;
-                } catch (IOException e) {
-                    LogService.error("[JavaService] ✗ Ошибка при копировании из " + libPath);
-                }
-            }
-        }
-
-        LogService.error("[JavaService] ✗ Не удалось найти " + libName);
+        LogService.error("[JavaService]    Проверьте:");
+        LogService.error("[JavaService]    1. Была ли успешно загружена JRE");
+        LogService.error("[JavaService]    2. Была ли корректно распакована");
+        LogService.error("[JavaService]    3. Хватает ли места на диске");
+        
         return false;
     }
 
-    private static String[] getCommonLibraryPaths(String libName) {
-        if (SystemContext.isWindows()) {
-            return new String[]{
-                "C:\\Windows\\System32\\" + libName,
-                "C:\\Program Files\\Java\\jdk-17\\lib\\" + libName
-            };
-        } else if (SystemContext.isMac()) {
-            return new String[]{
-                "/usr/local/opt/openjdk@17/lib/" + libName,
-                "/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home/lib/" + libName
-            };
-        } else {
-            return new String[]{
-                "/usr/lib/jvm/java-17-openjdk-amd64/lib/" + libName,
-                "/usr/lib/jvm/java-17-openjdk-amd64/lib/server/" + libName,
-                "/usr/lib/jvm/java-17-openjdk/lib/" + libName,
-                "/usr/lib/jvm/java-17-openjdk/lib/server/" + libName,
-                "/usr/lib/jvm/default/lib/" + libName,
-                "/usr/lib/jvm/default/lib/server/" + libName,
-                "/usr/lib/x86_64-linux-gnu/" + libName,
-                "/usr/lib64/" + libName,
-                "/lib/x86_64-linux-gnu/" + libName,
-                "/usr/lib/jvm/java-17-openjdk-arm64/lib/" + libName,
-                "/usr/lib/jvm/java-17-openjdk-arm64/lib/server/" + libName,
-                "/usr/lib/aarch64-linux-gnu/" + libName
-            };
-        }
-    }
+    // УДАЛЕНО getCommonLibraryPaths - копирование файлов из системной Java вызывает крах! 
 
     private static boolean ensureConfig(String javaLibDir, String configName) {
         File libDir = new File(javaLibDir);
+        
+        // Первый вариант: ищем в стандартном месте (Java 17)
         File configFile = new File(libDir, configName);
-
         if (configFile.exists()) {
-            LogService.info("[JavaService] ✓ " + configName + " уже присутствует");
+            LogService.info("[JavaService] ✓ " + configName + " присутствует");
             return true;
         }
 
-        LogService.info("[JavaService] ⚠ " + configName + " отсутствует, восстанавливаем...");
+        // Второй вариант: ищем в подпапках для Java 8
+        String[] possiblePaths = {
+            configName,
+            "amd64" + File.separator + configName,
+            "server" + File.separator + configName,
+            "amd64" + File.separator + "server" + File.separator + configName,
+            "jre" + File.separator + configName,
+            "jre" + File.separator + "amd64" + File.separator + configName,
+        };
 
-        String systemJavaHome = System.getProperty("java.home");
-        File systemConfig = new File(systemJavaHome, "lib/" + configName);
-        if (systemConfig.exists()) {
-            try {
-                LogService.info("[JavaService] 📋 Копируем из системного Java...");
-                Files.copy(systemConfig.toPath(), configFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                LogService.info("[JavaService] ✓ " + configName + " восстановлен");
+        for (String path : possiblePaths) {
+            File candidate = new File(libDir, path);
+            if (candidate.exists()) {
+                LogService.info("[JavaService] ✓ " + configName + " найден в: " + path);
                 return true;
-            } catch (IOException e) {
-                LogService.error("[JavaService] ✗ Ошибка копирования: " + e.getMessage());
             }
         }
 
-        LogService.error("[JavaService] ✗ Не удалось найти " + configName);
+        // Конфиг не найден - это критическая ошибка
+        LogService.error("[JavaService] ✗ КРИТИЧЕСКАЯ ОШИБКА: " + configName + " НЕ НАЙДЕН в скачанной JRE!");
+        LogService.error("[JavaService]    Базовая папка: " + libDir.getAbsolutePath());
+        LogService.error("[JavaService]    Проверены пути:");
+        for (String path : possiblePaths) {
+            LogService.error("[JavaService]      - " + path);
+        }
+        LogService.error("[JavaService]    НЕ используем файлы из системной Java во избежание крашей!");
+        
         return false;
     }}
