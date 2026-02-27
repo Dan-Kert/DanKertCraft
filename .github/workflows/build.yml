@@ -16,14 +16,22 @@ jobs:
           architecture: x64
 
       - name: Build with Maven
+        # Оборачиваем аргумент в кавычки для PowerShell и используем правильный флаг игнорирования тестов
+        run: mvn clean package "-Dmaven.test.skip=true"
+
+      - name: Prepare distribution
+        # Создаем папку и копируем JAR только после успешной сборки
         run: |
-          # Используем -Dmaven.test.skip=true чтобы полностью игнорировать сломанные тесты
-          mvn clean package -Dmaven.test.skip=true
           mkdir dist
           copy target/DanKertCraft-*.jar dist/DanKertCraft.jar
 
       - name: Create EXE with jpackage
         run: |
+          # Проверяем, существует ли иконка, чтобы билд не упал в самом конце
+          if (!(Test-Path "logo.ico")) { 
+            Write-Host "⚠️ Файл logo.ico не найден! jpackage может выдать ошибку." 
+          }
+
           jpackage `
             --type exe `
             --dest output `
@@ -41,7 +49,7 @@ jobs:
             --win-dir-chooser `
             --java-options "-Xmx2G -Xms512M -Dfile.encoding=UTF-8" `
             --win-upgrade-uuid "d85b1a20-1234-4abc-bd12-87654321abcd"
-            
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
