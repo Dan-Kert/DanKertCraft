@@ -273,8 +273,9 @@ public class InstallWindow {
             File instanceDir = new File(workDir, "instances/" + folderName);
             instanceDir.mkdirs();
 
-            String initialJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"auto\",\"ram\":\"%s\",\"username\":\"%s\",\"downloaded\":false}",
-                    ver, currentCategory, ram, nick);
+            // сохраняем выбранную версию Java (или "Auto").
+            String initialJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"%s\",\"ram\":\"%s\",\"username\":\"%s\",\"downloaded\":false}",
+                    ver, currentCategory, java == null || java.isEmpty() ? "Auto" : java, ram, nick);
             Files.writeString(new File(instanceDir, "instance.json").toPath(), initialJson);
 
             md.dankert.dankertcraft.config.ConfigManager.getInstance().setUsername(nick);
@@ -286,10 +287,15 @@ public class InstallWindow {
                 @Override protected Void call() throws Exception {
                     md.dankert.dankertcraft.core.MinecraftInstaller.InstallType type = currentCategory.equals("Fabric") ? md.dankert.dankertcraft.core.MinecraftInstaller.InstallType.FABRIC : md.dankert.dankertcraft.core.MinecraftInstaller.InstallType.VANILLA;
 
-                    // Параллельно запускаем скачивание Java, чтобы оно шло во время загрузки ассетов
+                    // Параллельно запускаем скачивание Java, чтобы оно шло во время загрузки ассетов. Если пользователь
+                    // выбрал конкретную версию, используем её, иначе - auto (installer сам выберет нужную).
                     Thread javaThread = new Thread(() -> {
                         try {
-                            installer.setupJavaRuntime(ver, this);
+                            if (java == null || java.equalsIgnoreCase("Auto")) {
+                                installer.setupJavaRuntime(ver, this);
+                            } else {
+                                installer.setupJavaRuntime(ver, java, this);
+                            }
                         } catch (Exception je) {
                             LogService.warn("[InstallWindow] Ошибка при фоновом скачивании Java: " + je.getMessage());
                         }
@@ -307,23 +313,20 @@ public class InstallWindow {
                         Thread.currentThread().interrupt();
                     }
 
-                    String javaPath;
+                    // принудительно дожидаемся установки Java, если поток ещё жив
                     if (javaThread.isAlive()) {
-                        // принудительно дожидаемся/выполняем установку
-                        javaPath = installer.setupJavaRuntime(ver, this);
-                    } else {
-                        // В идеале фоновая загрузка уже установила runtime — всё равно запросим путь
-                        javaPath = installer.setupJavaRuntime(ver, this);
+                        if (java == null || java.equalsIgnoreCase("Auto")) {
+                            installer.setupJavaRuntime(ver, this);
+                        } else {
+                            installer.setupJavaRuntime(ver, java, this);
+                        }
                     }
 
-                    // Нормализуем пути для JSON: используем forward slashes для portability, но на Windows оставляем как есть
-                    String normalizedJavaPath = javaPath;
-                    if (!System.getProperty("os.name").toLowerCase().contains("win")) {
-                        normalizedJavaPath = javaPath.replace("\\", "/");
-                    }
-                    
+                    // сохраняем ту же самую версию Java, что был выбран пользователем;
+                    String finalJavaValue = java == null || java.isEmpty() ? "Auto" : java;
+
                     String finalJson = String.format("{\"version\":\"%s\",\"type\":\"%s\",\"javaPath\":\"%s\",\"ram\":\"%s\",\"icon\":\"%s\",\"downloaded\":true}",
-                            ver, currentCategory, normalizedJavaPath, ram, selectedIconFile);
+                            ver, currentCategory, finalJavaValue, ram, selectedIconFile);
                     Files.writeString(new File(instanceDir, "instance.json").toPath(), finalJson);
 
                     // После успешного завершения установки — обновим грид чтобы иконка появилась

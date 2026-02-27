@@ -36,7 +36,7 @@ jobs:
             --input dist `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
-          --icon "logo.ico" `
+            --icon "logo.ico" `
             --win-shortcut `
             --win-menu `
             --win-dir-chooser `

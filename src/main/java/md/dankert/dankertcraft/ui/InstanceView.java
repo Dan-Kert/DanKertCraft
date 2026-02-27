@@ -184,7 +184,7 @@ public class InstanceView extends VBox {
                 createInfoStat(t("stat.version"), config.has("version") ? config.get("version").getAsString() : "1.20.1"),
                 createInfoStat(t("stat.type"), config.has("type") ? config.get("type").getAsString() : "Vanilla"),
                 createInfoStat(t("stat.memory"), (config.has("ram") ? config.get("ram").getAsString() : "4") + " GB"),
-                createInfoStat("JAVA", (config.has("javaPath") && config.get("javaPath").getAsString().contains("21")) ? "Java 21" : "Java 17"),
+                createInfoStat("JAVA", config.has("javaPath") ? config.get("javaPath").getAsString() : "Auto"),
                 createInfoStat(t("stat.launches"), config.has("launches") ? String.valueOf(config.get("launches").getAsInt()) : "0"),
                 createInfoStat(t("stat.playtime"), playtimeDisplay)
         );
@@ -417,9 +417,10 @@ public class InstanceView extends VBox {
         javaLabel.setStyle("-fx-text-fill: " + Themes.Colors.TEXT_SECONDARY + "; -fx-font-size: 12px;");
 
         ComboBox<String> javaBox = new ComboBox<>();
-        javaBox.getItems().addAll("Java 8", "Java 16", "Java 17", "Java 21");
+        // добавляем возможность автоподбора
+        javaBox.getItems().addAll("Auto", "Java 8", "Java 16", "Java 17", "Java 21");
         // Пытаемся поставить то, что уже сохранено в конфиге
-        javaBox.setValue(config.has("javaPath") ? config.get("javaPath").getAsString() : "Java 17");
+        javaBox.setValue(config.has("javaPath") ? config.get("javaPath").getAsString() : "Auto");
         javaBox.setMaxWidth(Double.MAX_VALUE);
         javaBox.setStyle("-fx-background-color: " + Themes.Colors.BG_SECONDARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-padding: 5;");
 

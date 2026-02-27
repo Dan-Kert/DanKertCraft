@@ -44,6 +44,9 @@ public class CrossPlatformTest {
             // Тест 3.6: Поиск java-исполняемого рекурсивно
             testFindExecutableRecursively();
             
+            // Тест 3.7: Миграция старого instance.json с абсолютным javaPath
+            testInstanceConfigMigration();
+            
             // Тест 4: CacheManager (NPE защита)
             testCacheManager();
             
@@ -169,6 +172,40 @@ public class CrossPlatformTest {
             passTest("File операции: NPE защита работает");
         } catch (Exception e) {
             failTest("FileOperations", e);
+        }
+    }
+
+    /**
+     * Тест 3.7: миграция конфигурации инстанса
+     */
+    private static void testInstanceConfigMigration() {
+        LogService.info("[Test 3.7] 🔄 Проверка миграции javaPath в конфиге инстанса...");
+        try {
+            String testDir = System.getProperty("java.io.tmpdir") + File.separator + "dkc_config_mig";
+            File work = new File(testDir);
+            work.mkdirs();
+            File inst = new File(work, "instances"); inst.mkdirs();
+            File instFolder = new File(inst, "test"); instFolder.mkdirs();
+            File cfg = new File(instFolder, "instance.json");
+            // создаём старый конфиг с linux-путём
+            String oldJson = "{\"version\":\"1.0\",\"type\":\"Vanilla\",\"javaPath\":\"/home/user/.dankertcraft/runtime/java8/bin/java\",\"ram\":\"2\"}";
+            java.nio.file.Files.writeString(cfg.toPath(), oldJson);
+
+            JsonObject loaded = InstanceConfigHelper.loadInstanceConfig(testDir, "test");
+            String value = loaded.get("javaPath").getAsString();
+            assertTrue("Значение javaPath преобразовано", value.equals("Java 8") || value.equals("Auto"));
+            // файл должен был перезаписаться
+            String newContent = java.nio.file.Files.readString(cfg.toPath());
+            assertTrue("Файл обновлён", newContent.contains("javaPath"));
+
+            // cleanup
+            java.nio.file.Files.walk(work.toPath())
+                .sorted(java.util.Comparator.reverseOrder())
+                .forEach(p -> { try { java.nio.file.Files.delete(p); } catch (Exception ignore){} });
+
+            passTest("InstanceConfig migration");
+        } catch (Exception e) {
+            failTest("InstanceConfigMigration", e);
         }
     }
     

@@ -62,6 +62,7 @@ public class BuildExporter {
                 instanceName,
                 instanceConfig.has("version") ? instanceConfig.get("version").getAsString() : "unknown",
                 instanceConfig.has("type") ? instanceConfig.get("type").getAsString() : "vanilla",
+                // javaPath может содержать версию Java после миграции
                 instanceConfig.has("javaPath") ? instanceConfig.get("javaPath").getAsString() : "auto",
                 instanceConfig.has("ram") ? Integer.parseInt(instanceConfig.get("ram").getAsString()) : 4,
                 instanceConfig.has("icon") ? instanceConfig.get("icon").getAsString() : "standart.png"

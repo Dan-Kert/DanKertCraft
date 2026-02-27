@@ -26,6 +26,7 @@ public class BuildService {
         public String buildName;
         public String version;
         public String type;
+        // раньше хранился абсолютный путь к java.exe, теперь - строка версии ("Java 17", "Auto" и т.п.)
         public String javaPath;
         public int ramGB;
         public String icon;

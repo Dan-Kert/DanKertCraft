@@ -3,6 +3,7 @@ package md.dankert.dankertcraft.core;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import md.dankert.dankertcraft.utils.LogService;
+import md.dankert.dankertcraft.utils.InstanceConfigHelper;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,19 +36,15 @@ public class GameLauncher {
         File instanceDir = new File(workDir, "instances" + File.separator + instanceName);
         if (!instanceDir.exists()) instanceDir.mkdirs();
 
-        File configFile = new File(instanceDir, "instance.json");
+        // Используем утилиту конфигурации, чтобы единообразно читать и мигрировать данные
         String mcVersion;
-        String javaVersion = "Java 17"; // Версия по умолчанию
+        String javaVersion = "Auto"; // значение по умолчанию
+        File configFile = new File(instanceDir, "instance.json");
         if (configFile.exists()) {
-            String content = Files.readString(configFile.toPath());
-            JsonObject json = gson.fromJson(content, JsonObject.class);
-            mcVersion = json.get("version").getAsString();
-            
-            // Читаем выбранную версию Java из конфига
-            if (json.has("javaPath")) {
-                javaVersion = json.get("javaPath").getAsString();
-                LogService.info("[GameLauncher] 🔧 Версия Java из конфига: " + javaVersion);
-            }
+            JsonObject json = InstanceConfigHelper.loadInstanceConfig(workDir, instanceName);
+            mcVersion = InstanceConfigHelper.getGameVersion(json);
+            javaVersion = InstanceConfigHelper.getJavaVersion(json);
+            LogService.info("[GameLauncher] 🔧 Версия Java из конфига: " + javaVersion);
         } else {
             mcVersion = instanceName.split("-")[0];
         }
