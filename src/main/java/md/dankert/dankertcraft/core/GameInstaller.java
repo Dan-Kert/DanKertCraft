@@ -271,7 +271,7 @@ public class GameInstaller {
             url = artifact.url; path = artifact.path; sha1 = artifact.sha1;
         } else if (name != null) {
             path = convertMavenToPath(name);
-            String repo = (baseUrl != null) ? baseUrl : "https://files.prismlauncher.org/maven/";
+            String repo = (baseUrl != null) ? baseUrl : "https://libraries.minecraft.net/";
             url = repo + (repo.endsWith("/") ? "" : "/") + path;
         }
 
@@ -297,7 +297,7 @@ public class GameInstaller {
 
     private void downloadAssets(VersionData.AssetIndex index) throws IOException {
         String indexName = index.id;
-        String path = workDir + "/assets/indexes/" + indexName + ".json";
+        String path = workDir + File.separator + "assets" + File.separator + "indexes" + File.separator + indexName + ".json";
         File indexFile = new File(path);
 
         if (needsUpdate(indexFile, index.sha1)) {

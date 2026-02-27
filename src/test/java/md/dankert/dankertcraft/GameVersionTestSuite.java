@@ -55,6 +55,7 @@ public class GameVersionTestSuite {
     }
     
     public static void main(String[] args) {
+        runClassifierSanity();
         System.out.println("\n" +
             "╔═══════════════════════════════════════════════════════════════╗\n" +
             "║     🎮 GAME VERSION TEST SUITE - DanKertCraft 🎮             ║\n" +
@@ -73,6 +74,37 @@ public class GameVersionTestSuite {
         printSummary();
         saveErrorReports();
         saveMainLogFile();  // Сохраняем итоговый лог в корень проекта
+    }
+    
+    /**
+     * Быстрая проверка логики выбора нативных артефактов.
+     * Запускается один раз при старте тестового сьюита и не влияет на остальные тесты.
+     */
+    private static void runClassifierSanity() {
+        try {
+            VersionData.Library lib = new VersionData.Library();
+            lib.natives = new HashMap<>();
+            lib.natives.put("windows", "win64");
+            lib.natives.put("linux", "linux64");
+            lib.natives.put("osx", "osx64");
+            lib.downloads = new VersionData.LibraryDownloads();
+            lib.downloads.classifiers = new HashMap<>();
+            VersionData.Artifact a = new VersionData.Artifact();
+            a.path = "dummy";
+            lib.downloads.classifiers.put("natives-win64", a);
+            lib.downloads.classifiers.put("natives-linux64", a);
+            lib.downloads.classifiers.put("natives-osx64", a);
+
+            VersionData.Artifact pickWin = MinecraftInstaller.selectNativeArtifact(lib, "windows");
+            VersionData.Artifact pickLin = MinecraftInstaller.selectNativeArtifact(lib, "linux");
+            VersionData.Artifact pickOsx = MinecraftInstaller.selectNativeArtifact(lib, "osx");
+            if (pickWin == null || pickLin == null || pickOsx == null) {
+                throw new RuntimeException("Sanity check failed: one of native artifacts is null");
+            }
+            LogService.info("[Sanity] Native classifier logic appears OK");
+        } catch (Throwable t) {
+            LogService.error("[Sanity] Ошибка при проверке native classifier", t);
+        }
     }
     
     /**

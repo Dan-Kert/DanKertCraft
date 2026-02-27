@@ -5,10 +5,7 @@ import md.dankert.dankertcraft.utils.LogService;
 import md.dankert.dankertcraft.utils.LanguageStrings;
 import md.dankert.dankertcraft.utils.SystemContext;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -17,7 +14,9 @@ public class VanillaManager {
     private final String workDir;
     private final GameInstaller installer;
     private final Gson gson = new Gson();
-    private long totalBytesDownloaded = 0; // Для глобального расчета скорости
+    // поле для возможной статистики скачивания
+    @SuppressWarnings("unused")
+    private long totalBytesDownloaded = 0;
 
     public VanillaManager(String workDir) {
         this.workDir = workDir;
@@ -116,14 +115,11 @@ public class VanillaManager {
         if (!targetNativesDir.exists()) targetNativesDir.mkdirs();
 
         for (VersionData.Library lib : data.libraries) {
-            if (lib.downloads != null && lib.downloads.classifiers != null) {
-                VersionData.Artifact nativeArt = lib.downloads.classifiers.get("natives-linux");
-                if (nativeArt == null) nativeArt = lib.downloads.classifiers.get("linux");
-
-                if (nativeArt != null) {
-                    File nativeJar = new File(workDir, "libraries/" + nativeArt.path);
-                    if (nativeJar.exists()) unzipNatives(nativeJar, targetNativesDir);
-                }
+            VersionData.Artifact nativeArt = MinecraftInstaller.selectNativeArtifact(lib,
+                    SystemContext.isWindows() ? "windows" : SystemContext.isMac() ? "osx" : "linux");
+            if (nativeArt != null) {
+                File nativeJar = new File(workDir, "libraries" + File.separator + nativeArt.path);
+                if (nativeJar.exists()) unzipNatives(nativeJar, targetNativesDir);
             }
         }
     }

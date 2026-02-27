@@ -30,12 +30,13 @@ jobs:
             --type exe `
             --dest output `
             --name "DanKertCraft" `
-            --vendor "DanKert Studio" `
+            --vendor "DanKert" `
             --description "The Ultimate Minecraft Launcher by DanKert" `
             --app-version "1.0.0" `
             --input dist `
             --main-jar DanKertCraft.jar `
             --main-class md.dankert.dankertcraft.Main `
+          --icon "logo.ico" `
             --win-shortcut `
             --win-menu `
             --win-dir-chooser `

@@ -78,14 +78,14 @@ public class InstanceView extends VBox {
         ContextMenu settingsMenu = new ContextMenu();
 
         // СТИЛИЗАЦИЯ МЕНЮ (Убираем белые края и фон)
-        settingsMenu.setStyle("-fx-background-color: #1a1a1a; -fx-border-color: #333; -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 0;");
+        settingsMenu.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + "; -fx-border-color: " + Themes.Colors.BORDER_COLOR + "; -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 0;");
 
         // Принудительное окрашивание внутреннего контейнера при показе
         settingsMenu.addEventHandler(javafx.stage.WindowEvent.WINDOW_SHOWING, e -> {
             if (settingsMenu.getScene() != null && settingsMenu.getScene().getRoot() != null) {
                 settingsMenu.getScene().getRoot().setStyle(
-                        "-fx-base: #1a1a1a; " +
-                                "-fx-control-inner-background: #1a1a1a; " +
+                        "-fx-base: " + Themes.Colors.BG_PRIMARY + "; " +
+                                "-fx-control-inner-background: " + Themes.Colors.BG_PRIMARY + "; " +
                                 "-fx-background-color: transparent; " + // Прозрачный, чтобы видеть фон ContextMenu
                                 "-fx-text-fill: white;"
                 );

@@ -336,7 +336,7 @@ public class MinecraftInstaller {
 
     private void downloadAssets(VersionData.AssetIndex index) throws IOException {
         String indexName = index.id;
-        String path = workDir + "/assets/indexes/" + indexName + ".json";
+        String path = workDir + File.separator + "assets" + File.separator + "indexes" + File.separator + indexName + ".json";
         File indexFile = new File(path);
 
         if (needsUpdate(indexFile, index.sha1)) {
@@ -466,34 +466,58 @@ public class MinecraftInstaller {
 
     // --- NATIVES EXTRACTION & CLASSPATH ---
 
+    /**
+     * Выбирает нативный артефакт из библиотеки, подходящий для указанной платформы.
+     *
+     * @param lib версия библиотеки из JSON-манифеста
+     * @param osFamily «windows», «osx» или «linux»
+     * @return артефакт или null если ничего не найдено
+     */
+    public static VersionData.Artifact selectNativeArtifact(VersionData.Library lib, String osFamily) {
+        if (lib == null || lib.downloads == null || lib.downloads.classifiers == null) return null;
+        String classifierKey = null;
+        if (lib.natives != null) {
+            classifierKey = lib.natives.get(osFamily);
+            if (classifierKey == null) {
+                // попытка обойти отсутствие ключа в map
+                classifierKey = lib.natives.get("windows");
+                if (classifierKey == null) classifierKey = lib.natives.get("osx");
+                if (classifierKey == null) classifierKey = lib.natives.get("linux");
+            }
+        }
+        if (classifierKey == null) return null;
+        VersionData.Artifact art = lib.downloads.classifiers.get("natives-" + classifierKey);
+        if (art == null) art = lib.downloads.classifiers.get(classifierKey);
+        return art;
+    }
+
     public void extractNatives(VersionData data, File targetNativesDir) throws IOException {
         if (data == null || data.libraries == null) return;
         if (!targetNativesDir.exists()) targetNativesDir.mkdirs();
 
         for (VersionData.Library lib : data.libraries) {
-            if (lib.downloads != null && lib.downloads.classifiers != null) {
-                VersionData.Artifact nativeArt = lib.downloads.classifiers.get("natives-linux");
-                if (nativeArt == null) nativeArt = lib.downloads.classifiers.get("linux");
-
-                if (nativeArt != null) {
-                    File nativeJar = new File(workDir, "libraries/" + nativeArt.path);
-                    if (nativeJar.exists()) unzipNatives(nativeJar, targetNativesDir);
-                }
+            VersionData.Artifact nativeArt = selectNativeArtifact(lib, osFamily);
+            if (nativeArt != null) {
+                File nativeJar = new File(workDir, "libraries" + File.separator + nativeArt.path);
+                if (nativeJar.exists()) unzipNatives(nativeJar, targetNativesDir);
             }
         }
     }
 
     private void unzipNatives(File zipFile, File destDir) throws IOException {
+        // универсальный распаковщик – извлекает только бинарные файлы из архива
         try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
                 String name = entry.getName();
                 String fileName = new File(name).getName();
+                // фильтруем по расширению, пропускаем мета‑инф
                 if ((name.endsWith(".so") || name.endsWith(".dll") || name.endsWith(".dylib")) && !name.contains("META-INF")) {
                     File outFile = new File(destDir, fileName);
                     try (FileOutputStream fos = new FileOutputStream(outFile)) {
                         zis.transferTo(fos);
                     }
+                    // на Windows права не требуется менять
                     if (!SystemContext.isWindows()) {
                         outFile.setExecutable(true, false);
                         outFile.setReadable(true, false);

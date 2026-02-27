@@ -38,6 +38,12 @@ public class CrossPlatformTest {
             // Тест 3: File операции (NPE защита)
             testFileOperations();
             
+            // Тест 3.5: Проверка распаковки Java архивов
+            testJavaUnpack();
+            
+            // Тест 3.6: Поиск java-исполняемого рекурсивно
+            testFindExecutableRecursively();
+            
             // Тест 4: CacheManager (NPE защита)
             testCacheManager();
             
@@ -164,6 +170,103 @@ public class CrossPlatformTest {
         } catch (Exception e) {
             failTest("FileOperations", e);
         }
+    }
+    
+    /**
+     * Тест 3.5: проверка распаковки архивов в JavaService
+     */
+    private static void testJavaUnpack() {
+        LogService.info("[Test 3.5] 📦 Тест распаковки архивов JavaService...");
+        try {
+            File tmp = new File(System.getProperty("java.io.tmpdir"), "dkc_test_unpack");
+            if (tmp.exists()) {
+                java.nio.file.Files.walk(tmp.toPath())
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .forEach(p -> { try { java.nio.file.Files.delete(p); } catch (Exception ignore) {} });
+            }
+            tmp.mkdirs();
+
+            // создаём ZIP с вложенной папкой
+            File zip = new File(tmp, "test.zip");
+            try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(zip))) {
+                zos.putNextEntry(new java.util.zip.ZipEntry("folder/"));
+                zos.closeEntry();
+                zos.putNextEntry(new java.util.zip.ZipEntry("folder/file.txt"));
+                zos.write("hello".getBytes());
+                zos.closeEntry();
+            }
+            File outZip = new File(tmp, "outZip");
+            outZip.mkdirs();
+            JavaService.unpackArchive(zip, outZip);
+            assertTrue("Zip extraction root stripped", !new File(outZip, "folder").exists() && new File(outZip, "file.txt").exists());
+
+            // создаём tar.gz
+            File tar = new File(tmp, "test.tar.gz");
+            createSimpleTarGz(tar);
+            File outTar = new File(tmp, "outTar");
+            outTar.mkdirs();
+            JavaService.unpackArchive(tar, outTar);
+            assertTrue("Tar extraction root stripped", new File(outTar, "file.txt").exists());
+
+            passTest("JavaService: unpackArchive корректно работает");
+        } catch (Exception e) {
+            failTest("JavaService.unpackArchive", e);
+        }
+    }
+
+    private static void testFindExecutableRecursively() {
+        LogService.info("[Test 3.6] 🔍 Тест поиска java.exe рекурсивно...");
+        try {
+            File root = new File(System.getProperty("java.io.tmpdir"), "dkc_exec_test");
+            if (root.exists()) {
+                java.nio.file.Files.walk(root.toPath())
+                    .sorted(java.util.Comparator.reverseOrder())
+                    .forEach(p -> { try { java.nio.file.Files.delete(p); } catch (Exception ignore) {} });
+            }
+            File nested = new File(root, "a/b/c");
+            nested.mkdirs();
+            File fake = new File(nested, SystemContext.getJavaExecutableName());
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(fake)) {
+                fos.write("".getBytes());
+                fake.setExecutable(true);
+            }
+            File found = new JavaService("").findExecutableRecursively(root, SystemContext.getJavaExecutableName());
+            assertTrue("findExecutableRecursively должен найти вложенный бинарник", found != null && found.getAbsolutePath().equals(fake.getAbsolutePath()));
+            passTest("JavaService.findExecutableRecursively работает");
+        } catch (Exception e) {
+            failTest("JavaService.findExecutableRecursively", e);
+        }
+    }
+    
+    private static void createSimpleTarGz(File tarGz) throws Exception {
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tarGz);
+             java.util.zip.GZIPOutputStream gos = new java.util.zip.GZIPOutputStream(fos)) {
+            writeTarHeader(gos, "folder/", 0, '5');
+            byte[] data = "hello".getBytes();
+            writeTarHeader(gos, "folder/file.txt", data.length, '0');
+            gos.write(data);
+            int pad = 512 - (data.length % 512);
+            if (pad < 512) gos.write(new byte[pad]);
+            // две пустые записи
+            gos.write(new byte[1024]);
+        }
+    }
+
+    private static void writeTarHeader(java.io.OutputStream os, String name, long size, char typeflag) throws Exception {
+        byte[] header = new byte[512];
+        byte[] nameBytes = name.getBytes("US-ASCII");
+        System.arraycopy(nameBytes, 0, header, 0, Math.min(nameBytes.length, 100));
+        String sizeOct = Long.toOctalString(size);
+        byte[] sizeBytes = sizeOct.getBytes("US-ASCII");
+        System.arraycopy(sizeBytes, 0, header, 124, sizeBytes.length);
+        header[156] = (byte) typeflag;
+        for (int i = 148; i < 156; i++) header[i] = ' ';
+        long sum = 0;
+        for (byte b : header) sum += (b & 0xFF);
+        String checksum = Long.toOctalString(sum);
+        byte[] chkBytes = checksum.getBytes("US-ASCII");
+        System.arraycopy(chkBytes, 0, header, 148, chkBytes.length);
+        os.write(header);
     }
     
     /**

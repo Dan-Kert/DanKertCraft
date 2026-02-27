@@ -40,7 +40,8 @@ public class IconSelector extends Stage {
 
         VBox root = new VBox(15);
         root.setPadding(new Insets(15));
-        root.setStyle("-fx-background-color: #1e1e1e;");
+        // match main menu background from theme
+        root.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
 
         // Кнопка добавления своего файла
         Button uploadBtn = new Button(IconProvider.extractText(t("button.add.icon")));
@@ -63,7 +64,8 @@ public class IconSelector extends Stage {
         ScrollPane scrollPane = new ScrollPane(tilePane);
         scrollPane.setFitToWidth(true);
         scrollPane.setPrefHeight(400);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: #1e1e1e; -fx-border-color: #333;");
+        // transparent viewport but underlying root already has primary bg
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: " + Themes.Colors.BG_PRIMARY + "; -fx-border-color: #333;");
 
         root.getChildren().addAll(uploadBtn, scrollPane);
 

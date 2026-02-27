@@ -210,7 +210,7 @@ public class PlatformHelper {
     public static boolean meetsMinimumRequirements() {
         // Проверяем что Java path существует
         String javaHome = System.getProperty("java.home");
-        File javaBin = new File(javaHome, "bin/" + getJavaExecutableName());
+        File javaBin = new File(new File(javaHome, "bin"), getJavaExecutableName());
         return javaBin.exists();
     }
 }

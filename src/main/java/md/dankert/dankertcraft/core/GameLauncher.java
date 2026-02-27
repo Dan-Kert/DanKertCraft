@@ -154,8 +154,11 @@ public class GameLauncher {
 
         // Не принудительно задаём имена системных библиотек LWJGL — это может заставить загрузчик брать
         // старые системные .so вместо тех, что в папке natives. Даем LWJGL самому найти нативы в natives/.
-
-        //cmd.add("-Dorg.lwjgl.system.allocator=system");
+        // Для UNIX‑платформ добавляем явную библиотечную папку и allocator.
+        if (!isWindows) {
+            cmd.add("-Dorg.lwjgl.system.allocator=system");
+            cmd.add("-Dorg.lwjgl.librarypath=" + nativesPath);
+        }
         cmd.add("-Dfile.encoding=UTF-8");
         
         // Нормализуем user.dir для Windows - используем backslashes для старых версий
@@ -201,6 +204,8 @@ public class GameLauncher {
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.directory(instanceDir);
+        // объединяем stderr и stdout, чтобы не терять native-errors
+        pb.redirectErrorStream(true);
 
         // Логирование команды запуска
         LogService.info("[GameLauncher] ═══════════════════════════════════════════════════════");
@@ -231,94 +236,34 @@ public class GameLauncher {
         // Убрали: pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
         // Убрали: pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
-
+        // Формируем переменные окружения для Unix-подобных систем
         if (!System.getProperty("os.name").toLowerCase().contains("win")) {
-            // Правильное построение LD_LIBRARY_PATH для Linux
-            String systemLibs = "/usr/lib/x86_64-linux-gnu:/usr/lib64:/lib/x86_64-linux-gnu";
-            String fullLdLibraryPath = nativesPath + ":" + systemLibs;
-            
-            // Если используем встроенный Java runtime, добавляем его lib
-            String javaLibDir = null;
-            if (!javaExec.equals("java") && !javaExec.equals("java.exe")) {
-                javaLibDir = new File(javaExec).getParentFile().getParent() + File.separator + "lib";
-                
-                // Для Java 8 на Linux библиотеки могут быть в lib/amd64/ и lib/amd64/server/
-                // Также современные JRE (Temurin/Adoptium) имеют server/ в lib/server/
-                String javaAmd64Lib = new File(javaExec).getParentFile().getParent() + File.separator + "lib" + File.separator + "amd64";
-                String javaAmd64ServerLib = javaAmd64Lib + File.separator + "server";
-                String javaServerLib = new File(javaExec).getParentFile().getParent() + File.separator + "lib" + File.separator + "server";
+            boolean isMac = System.getProperty("os.name").toLowerCase().contains("mac");
+            String libEnvKey = isMac ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH";
 
-                // Собираем полный LD_LIBRARY_PATH с учетом Java 8 и Java 17 структур
-                fullLdLibraryPath = nativesPath + ":" + javaLibDir + ":" + javaAmd64Lib + ":" + javaAmd64ServerLib + ":" + javaServerLib + ":" + systemLibs;
-                LogService.info("[GameLauncher] 📦 Java lib dir: " + javaLibDir);
-                LogService.info("[GameLauncher] 📦 Java amd64 lib dir: " + javaAmd64Lib);
-                LogService.info("[GameLauncher] 📦 Java server lib dir: " + javaServerLib);
-                
-                // ЗАКОММЕНТИРОВАНО: Проверка ensureRequiredLibs дает ложные срабатывания
-                // Adoptium JRE структура отличается от Oracle, но Java все равно работает
-                // LogService.info("[GameLauncher] 🔧 Проверка критических библиотек Java...");
-                // if (!JavaService.ensureRequiredLibs(javaLibDir)) {
-                //     LogService.info("[GameLauncher] ⚠ Некоторые библиотеки не удалось восстановить");
-                // }
-                
-                // ДИАГНОСТИКА: проверяем наличие libji.so
-                File javaLibFile = new File(javaLibDir);
-                if (javaLibFile.exists()) {
-                    LogService.info("[GameLauncher] ✓ Java lib директория существует");
-                    
-                    // Проверяем jvm.cfg
-                    File jvmCfg = new File(javaLibDir, "jvm.cfg");
-                    if (jvmCfg.exists()) {
-                        LogService.info("[GameLauncher] ✓ jvm.cfg найден");
-                    } else {
-                        LogService.info("[GameLauncher] ✗ jvm.cfg НЕ НАЙДЕН!");
-                    }
-                    
-                    File[] libFiles = javaLibFile.listFiles();
-                    if (libFiles != null) {
-                        LogService.info("[GameLauncher] 📋 Файлы в lib директории (" + libFiles.length + " всего):");
-                        for (File libFile : libFiles) {
-                            if (libFile.isFile() && (libFile.getName().endsWith(".so") || libFile.getName().contains("jli") || libFile.getName().contains("java") || libFile.getName().equals("jvm.cfg"))) {
-                                LogService.info("[GameLauncher]   - " + libFile.getName());
-                            }
-                        }
-                        
-                        // Проверяем критические библиотеки
-                        String[] requiredLibs = {"libjli.so", "libjava.so", "libjvm.so"};
-                        for (String libName : requiredLibs) {
-                            File lib = new File(javaLibDir, libName);
-                            if (lib.exists()) {
-                                LogService.info("[GameLauncher] ✓ " + libName + " найден");
-                            } else {
-                                LogService.info("[GameLauncher] ✗ ОШИБКА: " + libName + " НЕ НАЙДЕН!");
-                            }
-                        }
-                        
-                        // Проверяем server/ директорию
-                        File serverDir = new File(javaLibDir, "server");
-                        if (serverDir.exists()) {
-                            LogService.info("[GameLauncher] ✓ server/ директория найдена");
-                            File[] serverFiles = serverDir.listFiles();
-                            if (serverFiles != null) {
-                                LogService.info("[GameLauncher]   Файлы в server/ (" + serverFiles.length + " всего):");
-                                for (File sf : serverFiles) {
-                                    if (sf.isFile() && sf.getName().endsWith(".so")) {
-                                        LogService.info("[GameLauncher]     - " + sf.getName());
-                                    }
-                                }
-                            }
-                        } else {
-                            LogService.info("[GameLauncher] ✗ ОШИБКА: server/ директория НЕ НАЙДЕНА!");
-                        }
-                    }
-                } else {
-                    LogService.info("[GameLauncher] ✗ ОШИБКА: Java lib директория НЕ НАЙДЕНА: " + javaLibDir);
+            List<String> libPaths = new ArrayList<>();
+            // нативы инстанса идут в начало
+            libPaths.add(nativesPath);
+            // системные папки
+            if (isMac) libPaths.add("/usr/lib");
+            else libPaths.add("/usr/lib/x86_64-linux-gnu");
+
+            // добавляем все возможные папки Java-рантайма
+            if (!javaExec.equals("java") && !javaExec.equals("java.exe")) {
+                File javaBinFile = new File(javaExec);
+                String javaHome = javaBinFile.getParentFile().getParent(); // root JRE
+                String[] subPaths = {"lib", "lib/amd64", "lib/amd64/server", "lib/server"};
+                for (String sp : subPaths) {
+                    File dir = new File(javaHome, sp.replace("/", File.separator));
+                    if (dir.exists()) libPaths.add(dir.getAbsolutePath());
                 }
+                LogService.info("[GameLauncher] 📦 Нативные пути Java добавлены: " + libPaths);
             }
-            
-            pb.environment().put("LD_LIBRARY_PATH", fullLdLibraryPath);
-            LogService.info("[GameLauncher] 📦 LD_LIBRARY_PATH: " + fullLdLibraryPath);
-            
+
+            String fullLibs = String.join(File.pathSeparator, libPaths);
+            pb.environment().put(libEnvKey, fullLibs);
+            LogService.info("[GameLauncher] 📦 " + libEnvKey + ": " + fullLibs);
+
             pb.environment().put("ALSOFT_DRIVERS", "pulse,alsa");
             pb.environment().put("MESA_GL_VERSION_OVERRIDE", "4.6");
             LogService.info("[GameLauncher] 🔊 ALSOFT_DRIVERS: pulse,alsa");
@@ -360,26 +305,10 @@ public class GameLauncher {
                 }
             }, "GameStdout-Reader");
             
-            Thread stderrReader = new Thread(() -> {
-                try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                        new java.io.InputStreamReader(gameProcess.getErrorStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null && !Thread.currentThread().isInterrupted()) {
-                        LogService.error("[GAME-ERR] " + line);
-                    }
-                } catch (Exception e) {
-                    if (!Thread.currentThread().isInterrupted()) {
-                        LogService.error("[GameLauncher] Ошибка чтения stderr: " + e.getMessage());
-                    }
-                }
-            }, "GameStderr-Reader");
             
             stdoutReader.setDaemon(true);
-            stderrReader.setDaemon(true);
             stdoutReader.setUncaughtExceptionHandler((t, ex) -> LogService.error("[GameLauncher] Необработанное исключение в " + t.getName() + ": " + ex.getMessage(), ex));
-            stderrReader.setUncaughtExceptionHandler((t, ex) -> LogService.error("[GameLauncher] Необработанное исключение в " + t.getName() + ": " + ex.getMessage(), ex));
             stdoutReader.start();
-            stderrReader.start();
             
             // Отслеживаем время игры
             long startTime = System.currentTimeMillis();

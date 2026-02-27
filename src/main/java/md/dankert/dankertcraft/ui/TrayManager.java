@@ -26,10 +26,24 @@ public class TrayManager {
 
     public static void install(Stage stage, String workDir, Consumer<String> onLaunch) {
         mainStage = stage;
-        systemTray = SystemTray.get();
-        if (systemTray == null) return;
 
-        // Загрузка иконки (лучше через URL для JAR)
+        // Вместо FORCE_SWING или TYPE используем системные свойства
+        // Это заставляет библиотеку выбрать Swing-режим на Windows
+        System.setProperty("SystemTray.FORCE_GTK2", "false"); // На всякий случай
+        System.setProperty("SystemTray.SELECT_GUI", "SWING");
+
+        // Включаем дебаг, чтобы в логах GitHub Actions увидеть: "Tray type: SWING"
+        SystemTray.DEBUG = true;
+
+        // Теперь получаем объект. Библиотека сама считает свойства выше.
+        systemTray = SystemTray.get();
+
+        if (systemTray == null) {
+            System.err.println("Не удалось инициализировать SystemTray");
+            return;
+        }
+
+        // Устанавливаем иконку
         URL iconUrl = TrayManager.class.getResource("/icons/mak.png");
         if (iconUrl != null) {
             systemTray.setImage(iconUrl);

@@ -10,7 +10,6 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
-import javafx.animation.TranslateTransition;
 import javafx.util.Duration;
 import md.dankert.dankertcraft.utils.SystemContext;
 import md.dankert.dankertcraft.utils.LanguageStrings;
@@ -39,8 +38,9 @@ public class DownloadStatusBar extends HBox {
         this.setAlignment(Pos.CENTER_LEFT);
         this.setSpacing(12);
         this.setPadding(new Insets(10, 20, 10, 20));
-        this.setStyle("-fx-background-color: #161616; -fx-border-color: #333; -fx-border-width: 1 0 0 0;");
-
+        // Используем цвет из главного меню для консистентности
+        this.setStyle("-fx-background-color: #0d1117; -fx-border-color: #333; -fx-border-width: 1 0 0 0;");
+        // КРИТИЧНО: Скрываем полностью при инициализации
         this.setVisible(false);
         this.setManaged(false);
 
@@ -77,7 +77,7 @@ public class DownloadStatusBar extends HBox {
     private void setupLogWindow() {
         logArea.setEditable(false);
         logArea.setWrapText(true);
-        logArea.setStyle("-fx-control-inner-background: #0a0e27; -fx-text-fill: #00ff00; -fx-font-family: 'Courier New'; -fx-font-size: 11px;");
+logArea.setStyle("-fx-control-inner-background: " + Themes.Colors.BG_SECONDARY + "; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + "; -fx-font-family: 'Courier New'; -fx-font-size: 11px;");
 
         logBtn.setOnAction(e -> {
             if (logStage == null) {
@@ -89,10 +89,11 @@ public class DownloadStatusBar extends HBox {
                 
                 VBox logLayout = new VBox(10);
                 logLayout.setPadding(new Insets(10));
-                logLayout.setStyle("-fx-background-color: #0a0e27;");
+                // use primary background from main theme
+                logLayout.setStyle("-fx-background-color: " + Themes.Colors.BG_PRIMARY + ";");
                 
                 Label titleLabel = new Label("📋 Логирование процесса установки");
-                titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #00ff00;");
+                titleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + Themes.Colors.TEXT_PRIMARY + ";");
                 
                 HBox buttonBox = new HBox(10);
                 buttonBox.setAlignment(Pos.CENTER_RIGHT);
@@ -132,12 +133,19 @@ public class DownloadStatusBar extends HBox {
     public void start(String title, DownloadTask task) {
         logArea.clear();
         progressBar.progressProperty().unbind();
+        
+        // КРИТИЧНО: Сбросили состояние перед отображением
+        resetInternalState();
 
         Platform.runLater(() -> {
+            // ИСПРАВЛЕНО: Вернулись на setVisible/setManaged (resetInternalState уже восстановил видимость детей)
             this.setVisible(true);
             this.setManaged(true);
             titleLabel.setText(title);
             stageLabel.setText(t("label.stage.initializing"));
+            // Принудительно пересчитываем CSS и layout всех элементов
+            this.applyCss();
+            this.layout();
         });
 
         progressBar.progressProperty().bind(task.progressProperty());
@@ -205,6 +213,7 @@ public class DownloadStatusBar extends HBox {
 
     public void hideBar() {
         Platform.runLater(() -> {
+            // Полностью скрываем панель и удаляем из layout
             this.setVisible(false);
             this.setManaged(false);
             if (logStage != null) logStage.close();
@@ -213,11 +222,37 @@ public class DownloadStatusBar extends HBox {
 
     public void hideBarWithAnimation() {
         Platform.runLater(() -> {
-            TranslateTransition transition = new TranslateTransition(Duration.millis(500), this);
-            transition.setByY(100); // Скользит вниз
-            transition.setOnFinished(e -> hideBar());
-            transition.play();
+            // Простая анимация исчезновения
+            javafx.animation.FadeTransition fade = new javafx.animation.FadeTransition(Duration.millis(500), this);
+            fade.setToValue(0.0);
+            fade.setOnFinished(e -> hideBar());
+            fade.play();
         });
+    }
+
+    /**
+     * ✅ ПОЛНЫЙ ФИХ: Сбрасывает все внутренние состояния элементов UI перед переиспользованием.
+     * Решает проблему когда бар появляется, но его содержимое невидимо при повторном запуске.
+     */
+    private void resetInternalState() {
+        // Вос восстанавливаем видимость ВСЕХ дочерних элементов (критично после hideBar())
+        for (javafx.scene.Node child : this.getChildren()) {
+            child.setVisible(true);
+            child.setManaged(true);
+        }
+        
+        // Сбросить значения и стили всех элементов
+        percentLabel.setText("0%");
+        stageLabel.setStyle("-fx-text-fill: #aaa; -fx-font-size: 11px;");
+        speedLabel.setText("0.00 MB/s");
+        filesLabel.setText("0 / 0");
+        etaLabel.setText("");
+        etaLabel.setVisible(false);
+        etaLabel.setManaged(false);
+        progressBar.setProgress(0);
+        cancelBtn.setDisable(false);
+        logBtn.setDisable(false);
+        this.setOpacity(1.0);
     }
 
     private void deletePartialDownloads() {
