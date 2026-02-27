@@ -23,26 +23,25 @@ jobs:
 
       - name: Create EXE with jpackage
         run: |
-          # путь к модулям в JDK
-          $JMODS_PATH = "$env:JAVA_HOME\jmods"
+          # Мы НЕ используем --module-path и --add-modules, 
+          # так как все зависимости уже внутри Fat JAR.
           
           jpackage `
             --type exe `
             --dest output `
             --name "DanKertCraft" `
+            --vendor "DanKert Studio" `
+            --description "The Ultimate Minecraft Launcher by DanKert" `
+            --app-version "1.0.0" `
             --input dist `
             --main-jar DanKertCraft.jar `
-            --main-class md.dankert.dankertcraft.Launcher `
-            --module-path $JMODS_PATH `
-            --add-modules java.base,java.desktop,java.logging,java.net.http,javafx.controls,javafx.graphics `
+            --main-class md.dankert.dankertcraft.Main `
             --win-shortcut `
             --win-menu `
             --win-dir-chooser `
-            --vendor "DanKert Studio" `
-            --app-version "1.2.0" `
-            --java-options "-Xmx2G -Dfile.encoding=UTF-8"
-          # --icon src/main/resources/icons/mak.ico (если есть)
-
+            --java-options "-Xmx2G -Xms512M -Dfile.encoding=UTF-8" `
+            --win-upgrade-uuid "d85b1a20-1234-4abc-bd12-87654321abcd"
+            
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
