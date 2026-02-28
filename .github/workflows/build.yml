@@ -45,7 +45,6 @@ jobs:
             --icon "logo.ico" `
             --win-shortcut `
             --win-menu `
-            --win-console `
             --win-dir-chooser `
             --java-options "-Xmx2G -Xms512M -Dfile.encoding=UTF-8" `
             --win-upgrade-uuid "d85b1a20-1234-4abc-bd12-87654321abcd"

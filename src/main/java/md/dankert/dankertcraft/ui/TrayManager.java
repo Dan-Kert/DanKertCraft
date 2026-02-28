@@ -20,54 +20,66 @@ import java.util.stream.Stream;
 public class TrayManager {
 
     private static SystemTray systemTray;
-    private static MenuItem toggleItem;
-    private static Menu recentMenu;
     private static Stage mainStage;
+    private static String currentWorkDir;
+    private static Consumer<String> onLaunchHandler;
 
     public static void install(Stage stage, String workDir, Consumer<String> onLaunch) {
         mainStage = stage;
+        currentWorkDir = workDir;
+        onLaunchHandler = onLaunch;
 
-        // Вместо FORCE_SWING или TYPE используем системные свойства
-        // Это заставляет библиотеку выбрать Swing-режим на Windows
-        System.setProperty("SystemTray.FORCE_GTK2", "false"); // На всякий случай
         System.setProperty("SystemTray.SELECT_GUI", "SWING");
-
-        // Включаем дебаг, чтобы в логах GitHub Actions увидеть: "Tray type: SWING"
-        SystemTray.DEBUG = true;
-
-        // Теперь получаем объект. Библиотека сама считает свойства выше.
         systemTray = SystemTray.get();
 
-        if (systemTray == null) {
-            System.err.println("Не удалось инициализировать SystemTray");
-            return;
-        }
+        if (systemTray == null) return;
 
-        // Устанавливаем иконку
         URL iconUrl = TrayManager.class.getResource("/icons/mak.png");
-        if (iconUrl != null) {
-            systemTray.setImage(iconUrl);
-        }
+        if (iconUrl != null) systemTray.setImage(iconUrl);
+
+        rebuildMenu();
+    }
+
+    /**
+     * Пересобирает меню полностью, чтобы обновить список последних сборок
+     */
+    private static void rebuildMenu() {
+        if (systemTray == null) return;
 
         Menu mainMenu = systemTray.getMenu();
 
-        // 1. Пункт управления окном
-        toggleItem = new MenuItem(getToggleText(), e -> Platform.runLater(() -> {
+        // В dorkbox для полной очистки старых пунктов при динамическом обновлении
+        // иногда проще переинициализировать структуру через статус-инстанс,
+        // но здесь мы просто заполняем её с нуля при запуске.
+
+        // 1. Управление окном
+        mainMenu.add(new MenuItem(getToggleText(), e -> Platform.runLater(() -> {
             if (mainStage.isShowing()) {
                 mainStage.hide();
             } else {
                 mainStage.show();
                 mainStage.toFront();
             }
-            updateUI(); // Обновляем текст
-        }));
-        mainMenu.add(toggleItem);
+            // Для обновления текста (Open/Hide) без пересборки всего меню
+            // в dorkbox 4+ нужно работать с конкретным объектом MenuItem.
+        })));
 
         mainMenu.add(new Separator());
 
-        // 2. Подменю последних запусков
-        recentMenu = new Menu(LanguageStrings.get("recent.title"));
-        mainMenu.add(recentMenu);
+        // 2. Список последних 3-х сборок (БЕЗ ПАПКИ)
+        List<String> recent = fetchRecent(currentWorkDir, 30, 3); // Ищем за 30 дней, берем 3 шт.
+
+        if (recent.isEmpty()) {
+            MenuItem empty = new MenuItem(LanguageStrings.get("recent.empty"));
+            empty.setEnabled(false);
+            mainMenu.add(empty);
+        } else {
+            for (String name : recent) {
+                mainMenu.add(new MenuItem("🚀 " + name, e ->
+                        Platform.runLater(() -> onLaunchHandler.accept(name))
+                ));
+            }
+        }
 
         mainMenu.add(new Separator());
 
@@ -77,34 +89,11 @@ public class TrayManager {
             Platform.exit();
             System.exit(0);
         }));
-
-        refreshRecentItems(workDir, onLaunch);
-    }
-
-    public static void updateUI() {
-        if (toggleItem != null && mainStage != null) {
-            // В некоторых ОС Dorkbox требует явного вызова после изменения
-            toggleItem.setText(getToggleText());
-        }
     }
 
     private static String getToggleText() {
         if (mainStage == null) return "Open";
         return mainStage.isShowing() ? LanguageStrings.get("button.hide") : LanguageStrings.get("button.open");
-    }
-
-    private static void refreshRecentItems(String workDir, Consumer<String> onLaunch) {
-        if (recentMenu == null) return;
-
-        List<String> recent = fetchRecent(workDir, 7, 5);
-
-        // Очистка подменю (в Dorkbox может быть капризным)
-        // Если add() просто добавляет в конец, список будет расти.
-        // К сожалению, полной очистки Menu в dorkbox 4.x нет без пересоздания всего меню.
-
-        for (String name : recent) {
-            recentMenu.add(new MenuItem(name, e -> Platform.runLater(() -> onLaunch.accept(name))));
-        }
     }
 
     private static List<String> fetchRecent(String workDir, int days, int limit) {
@@ -117,13 +106,11 @@ public class TrayManager {
                     .filter(Files::exists)
                     .map(TrayManager::getLaunchEntry)
                     .filter(Objects::nonNull)
+                    // Фильтр по дате (опционально, можно убрать, если важны просто 3 последних запуска когда-либо)
                     .filter(entry -> entry.getValue().isAfter(LocalDateTime.now().minusDays(days)))
-                    .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue())) // Сортировка по дате (новые сверху)
+                    .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
                     .limit(limit)
-                    .map(entry -> {
-                        // Пытаемся достать красивое имя из JSON или берем имя папки
-                        return entry.getKey().getParent().getFileName().toString();
-                    })
+                    .map(entry -> entry.getKey().getParent().getFileName().toString())
                     .toList();
         } catch (Exception e) {
             return List.of();
@@ -134,7 +121,6 @@ public class TrayManager {
         try {
             String content = Files.readString(p);
             String last = JsonParser.parseString(content).getAsJsonObject().get("last_launch").getAsString();
-            // Убедитесь, что формат даты совпадает (например ISO_DATE_TIME)
             return Map.entry(p, LocalDateTime.parse(last));
         } catch (Exception e) {
             return null;
