@@ -7,6 +7,19 @@ Minecraft лаунчер с поддержкой Windows и Linux.
 |:----------------------------------:|:----------------------------------:|:----------------------------------:|
 | ![Screen 1](screenshot/image1.png) | ![Screen 2](screenshot/image2.png) | ![Screen 3](screenshot/image3.png) |
 
+### 🛠 Стек
+<p align="left">
+  <a href="https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html">
+    <img src="https://img.shields.io/badge/Java-17-orange?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 17">
+  </a>
+  <a href="https://openjfx.io/">
+    <img src="https://img.shields.io/badge/JavaFX-17-blue?style=for-the-badge&logo=java&logoColor=white" alt="JavaFX 17">
+  </a>
+  <img src="https://img.shields.io/badge/Platforms-Windows%20%7C%20Linux-brightgreen?style=for-the-badge&logo=linux&logoColor=white" alt="Windows & Linux">
+</p>
+
+---
+
 ## ✨ Основные возможности
 - ✅ **Кроссплатформность**: Windows и  Linux
 - ✅ **Скачивание Java**: скачивание нужной версии
