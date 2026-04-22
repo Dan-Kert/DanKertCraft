@@ -43,5 +43,11 @@ Minecraft лаунчер с поддержкой Windows и Linux.
 - [JavaFX SDK](https://gluonhq.com/products/javafx/)
 - [Minecraft Launcher](https://launcher.mojang.com/)
 
+### 📥 Загрузка
+* 📦 **[Скачать для Linux (.deb)](https://github.com/Dan-Kert/DanKertCraft/releases/download/v1.0/dankertcraft.deb)**
+* 🪟 **[Скачать для Windows (.exe)](https://github.com/Dan-Kert/DanKertCraft/releases/download/v1.0/DanKertCraft.exe)**
+
+---
+
 **Версия**: 1.0  
 **Дата**: 22 апреля 2026
