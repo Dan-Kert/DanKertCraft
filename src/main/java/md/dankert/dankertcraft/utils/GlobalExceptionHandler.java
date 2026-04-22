@@ -1,9 +1,5 @@
 package md.dankert.dankertcraft.utils;
 
-/**
- * Глобальный обработчик необработанных исключений
- * Гарантирует, что все ошибки будут залогированы в файл
- */
 public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
     
     private static GlobalExceptionHandler instance;

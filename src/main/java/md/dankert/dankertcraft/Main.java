@@ -10,7 +10,6 @@ import java.io.File;
 public class Main {
     public static void main(String[] args) {
         try {
-            // Инициализируем логирование в файл
             String logsDir = SystemContext.getWorkingDirectory() + File.separator + "logs";
             new File(logsDir).mkdirs();
             
@@ -19,8 +18,7 @@ public class Main {
             
             LogService.enableFileLogging(logFile);
             LogService.setMinimumLevel(LogService.Level.DEBUG);
-            
-            // Установляем глобальный обработчик исключений
+
             GlobalExceptionHandler.install();
             
             LogService.info("═══════════════════════════════════════════════════════");
@@ -29,8 +27,7 @@ public class Main {
                     " | Java: " + System.getProperty("java.version"));
             LogService.info("Логи сохраняются в: " + logFile);
             LogService.info("══════════════════════════════════════════════════════=");
-            
-            // Регистрируем shutdown hook для гарантированной записи логов при выходе
+
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 LogService.info("══════════════════════════════════════════════════════=");
                 LogService.info("🛑 DanKertCraft Launcher завершается");
