@@ -1,7 +1,8 @@
-name: Build DanKertLauncher EXE
+name: Build DanKertLauncher (EXE & DEB)
 on: [push]
 
 jobs:
+  # --- СБОРКА ДЛЯ WINDOWS ---
   build-windows:
     runs-on: windows-latest
     steps:
@@ -16,22 +17,18 @@ jobs:
           architecture: x64
 
       - name: Build with Maven
-        # Оборачиваем аргумент в кавычки для PowerShell и используем правильный флаг игнорирования тестов
         run: mvn clean package "-Dmaven.test.skip=true"
 
       - name: Prepare distribution
-        # Создаем папку и копируем JAR только после успешной сборки
         run: |
           mkdir dist
           copy target/DanKertCraft-*.jar dist/DanKertCraft.jar
 
       - name: Create EXE with jpackage
         run: |
-          # Проверяем, существует ли иконка, чтобы билд не упал в самом конце
           if (!(Test-Path "logo.ico")) { 
             Write-Host "⚠️ Файл logo.ico не найден! jpackage может выдать ошибку." 
           }
-
           jpackage `
             --type exe `
             --dest output `
@@ -49,8 +46,66 @@ jobs:
             --java-options "-Xmx2G -Xms512M -Dfile.encoding=UTF-8" `
             --win-upgrade-uuid "d85b1a20-1234-4abc-bd12-87654321abcd"
 
-      - name: Upload Artifact
+      - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: DanKertCraft-Windows-v1.0.${{ github.run_number }}
           path: output/*.exe
+
+  # --- СБОРКА ДЛЯ LINUX (DEB) ---
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install DEB Build Tools
+        # Для jpackage на Linux требуются утилиты сборки пакетов
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot alien
+
+      - name: Set up JDK 17 (Liberica FULL - includes JavaFX)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'liberica'
+          architecture: x64
+
+      - name: Build with Maven
+        run: mvn clean package -Dmaven.test.skip=true
+
+      - name: Prepare distribution
+        run: |
+          mkdir dist
+          cp target/DanKertCraft-*.jar dist/DanKertCraft.jar
+
+      - name: Create DEB with jpackage
+        run: |
+          # На Linux иконка должна быть в формате .png. Если файла нет, jpackage соберет со стандартной.
+          ICON_PARAM=""
+          if [ -f "logo.png" ]; then
+            ICON_PARAM="--icon logo.png"
+          fi
+
+          jpackage \
+            --type deb \
+            --dest output \
+            --name "dankertcraft" \
+            --vendor "DanKert" \
+            --description "The Ultimate Minecraft Launcher by DanKert" \
+            --app-version "1.0.${{ github.run_number }}" \
+            --input dist \
+            --main-jar DanKertCraft.jar \
+            --main-class md.dankert.dankertcraft.Main \
+            $ICON_PARAM \
+            --java-options "-Xmx2G -Xms512M -Dfile.encoding=UTF-8" \
+            --linux-shortcut \
+            --linux-menu-group "Game"
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DanKertCraft-Linux-v1.0.${{ github.run_number }}
+          path: output/*.deb
+          
